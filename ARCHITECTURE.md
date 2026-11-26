@@ -1,0 +1,11 @@
+# Adaptive Resource Monitor architecture
+
+The Windows application runs one Qt event loop. A timer refreshes the tray icon and visible views from a GUI-owned model. One supervised worker per local provider or remote machine owns its sampling schedule, baseline counters and connection. Workers publish immutable, timestamped results through queued signals. A separate worker owns SQLite, including retention, reads and writes. Providers and storage never run on the GUI thread.
+
+The common model uses machine, device and metric identifiers, physical units, an observation timestamp, availability and a safe diagnostic. Counter deltas use monotonic elapsed time. The first observation, counter resets and delayed observations form gaps. History buffers are bounded and charts use observation timestamps. Machine or category aggregation skips unavailable values and uses maxima of normalized readings where appropriate. VRAM capacity is a sum over measured devices.
+
+Windows collectors use psutil for CPU, memory and interfaces, native performance data for physical disks and WDDM GPU engines, DXGI for adapter identification, and NVML for NVIDIA hardware sensors. WDDM is the native shared path for AMD and Intel. Each collector can report a partial hardware capability. Linux SSH collection uses a self-contained read-only script over a persistent SSH channel. Windows Credential Manager holds saved authentication material and an application-owned known-host store holds accepted SSH keys. A new key requires explicit approval. Remote Windows uses the same provider interface when a verified implementation is available.
+
+Qt paints the tray icon and reports click/menu activation. Windows notification-area geometry and the actual cursor drive hover detection. The branded icon covers initialization and the optional Application Icon display. The expanded window combines the resource monitor and About tab. About and the Windows packages draw on the shared asset and identity definitions in arm/branding.py. All operations against monitored machines are telemetry reads.
+
+Configuration and logs live in per-user application data. The portable ZIP and installer share the frozen x64 application and the Python version source. The release check records automated results, native workstation results, unverified behavior and SHA-256 digests.
