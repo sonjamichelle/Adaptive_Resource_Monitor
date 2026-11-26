@@ -4,7 +4,7 @@ pipeline {
         skipDefaultCheckout()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '15', artifactNumToKeepStr: '6'))
-        copyArtifactPermission('Adaptive-Resource-Monitor/Publish-Release')
+        copyArtifactPermission('Publish-Release')
         timeout(time: 35, unit: 'MINUTES')
     }
     triggers { pollSCM('H/5 * * * *') }

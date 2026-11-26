@@ -3,6 +3,7 @@ pipeline {
     options {
         skipDefaultCheckout()
         disableConcurrentBuilds()
+        disableRestartFromStage()
         buildDiscarder(logRotator(numToKeepStr: '20'))
         timeout(time: 30, unit: 'MINUTES')
     }
@@ -41,7 +42,7 @@ pipeline {
             steps {
                 deleteDir()
                 checkout scm
-                copyArtifacts projectName: '/Adaptive-Resource-Monitor/Build-and-Archive',
+                copyArtifacts projectName: 'Build-and-Archive',
                               selector: specific("${env.ARM_PIN_BUILD}"), filter: 'release/candidate/*',
                               target: 'release/pinned', flatten: true, fingerprintArtifacts: true
                 bat 'py -3.12 -m venv .ci\\python'
