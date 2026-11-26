@@ -21,6 +21,7 @@ pipeline {
                 script {
                     env.ARM_SOURCE_COMMIT = bat(returnStdout: true, script: '@git rev-parse HEAD').trim()
                     env.ARM_VERSION = readFile('VERSION.md').trim()
+                    env.PYINSTALLER_CONFIG_DIR = "${env.WORKSPACE}\\.ci\\pyinstaller-cache"
                     if (!(env.ARM_SOURCE_COMMIT ==~ /[0-9a-f]{40}/) ||
                         !(env.ARM_VERSION ==~ /v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)_(alpha|beta|rc|stable)/)) {
                         error('Invalid Git commit or authoritative VERSION.md.')
@@ -35,7 +36,7 @@ pipeline {
                 bat 'py -3.12 -m venv .ci\\python'
                 bat '.ci\\python\\Scripts\\python.exe -m pip install -r requirements-build.txt'
                 bat '.ci\\python\\Scripts\\python.exe -m pip check'
-                bat 'powershell.exe -NoLogo -NoProfile -NonInteractive -File tools\\prepare_windows_compiler.ps1'
+                bat '.ci\\python\\Scripts\\python.exe tools\\prepare_windows_compiler.py'
             }
         }
         stage('Regression and native Windows checks') {
@@ -71,7 +72,7 @@ pipeline {
     post {
         cleanup {
             deleteDir()
-            echo 'Removed the ARM build workspace. Verified candidates are stored in Jenkins archival.'
+            echo 'Removed the ARM build workspace. Any successfully archived artifacts remain in Jenkins.'
         }
     }
 }
