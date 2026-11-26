@@ -1,0 +1,68 @@
+pipeline {
+    agent { label 'inkiron-windows-x64' }
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+    }
+    parameters {
+        string(name: 'BUILD_TO_PUBLISH', defaultValue: '', description: 'Exact successful ARM Build-and-Archive build number.')
+        string(name: 'SOURCE_COMMIT', defaultValue: '', description: 'Exact full Git SHA-1 from the selected build receipt.')
+        string(name: 'RELEASE_VERSION', defaultValue: '', description: 'Exact version from VERSION.md for the selected commit.')
+        booleanParam(name: 'VERIFY_ONLY', defaultValue: true, description: 'Validate the exact archive without access to publication credentials.')
+        booleanParam(name: 'AUTHORIZE_PUBLICATION', defaultValue: false, description: 'Explicitly authorize publishing this pinned build.')
+    }
+    environment {
+        PYTHONDONTWRITEBYTECODE = '1'
+        PIP_NO_CACHE_DIR = '1'
+        PIP_DISABLE_PIP_VERSION_CHECK = '1'
+    }
+    stages {
+        stage('Validate authorization and pin') {
+            steps {
+                script {
+                    if (!(params.BUILD_TO_PUBLISH ==~ /[1-9][0-9]*/) ||
+                        !(params.SOURCE_COMMIT ==~ /[0-9a-f]{40}/) ||
+                        !(params.RELEASE_VERSION ==~ /v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)_(alpha|beta|rc|stable)/)) {
+                        error('Select the exact archive build, commit and application version.')
+                    }
+                    if (!params.VERIFY_ONLY && !params.AUTHORIZE_PUBLICATION) {
+                        error('Public release publication requires explicit authorization.')
+                    }
+                    env.ARM_PIN_BUILD = params.BUILD_TO_PUBLISH
+                    env.ARM_PIN_COMMIT = params.SOURCE_COMMIT
+                    env.ARM_PIN_VERSION = params.RELEASE_VERSION
+                    currentBuild.description = "#${env.ARM_PIN_BUILD} · ${env.ARM_PIN_VERSION} · ${params.VERIFY_ONLY ? 'verification only' : 'authorized publication'}"
+                }
+            }
+        }
+        stage('Retrieve pinned successful archive') {
+            steps {
+                deleteDir()
+                checkout scm
+                copyArtifacts projectName: '/Adaptive-Resource-Monitor/Build-and-Archive',
+                              selector: specific("${env.ARM_PIN_BUILD}"), filter: 'release/candidate/*',
+                              target: 'release/pinned', flatten: true, fingerprintArtifacts: true
+                bat 'py -3.12 -m venv .ci\\python'
+                bat '.ci\\python\\Scripts\\python.exe -m pip install --no-cache-dir -r requirements.txt'
+                bat '.ci\\python\\Scripts\\python.exe tools\\ci_release.py verify release\\pinned %ARM_PIN_COMMIT% %ARM_PIN_BUILD% --version %ARM_PIN_VERSION%'
+            }
+        }
+        stage('Publish and verify anonymous downloads') {
+            when { expression { !params.VERIFY_ONLY && params.AUTHORIZE_PUBLICATION } }
+            steps {
+                withCredentials([string(credentialsId: 'arm-gitea-release', variable: 'ARM_GITEA_PUBLISH_TOKEN')]) {
+                    bat '@.ci\\python\\Scripts\\python.exe tools\\ci_release.py publish release\\pinned %ARM_PIN_COMMIT% %ARM_PIN_BUILD% --version %ARM_PIN_VERSION%'
+                }
+            }
+        }
+    }
+    post {
+        cleanup {
+            deleteDir()
+            echo 'Removed the ARM publication workspace and copied archive.'
+        }
+    }
+}

@@ -29,7 +29,11 @@ throughput scale per machine.
 Open the About tab from the monitor
 window or tray menu for build information, version history and support links.
 
-The application version is defined in [arm/version.py](arm/version.py).
+The application version is defined in [VERSION.md](VERSION.md). Open **About →
+Check for Updates** to check the public ARM Releases page. Downloading and
+installing are separate actions. Settings can enable startup or periodic checks.
+Both Windows x64 distributions use signed update metadata. See
+[Update mechanism](UPDATE_MECHANISM.md) and [Release process](RELEASE_PROCESS.md).
 See [BUILD.md](BUILD.md) for Windows build and verification commands,
 [TELEMETRY_PROVIDERS.md](TELEMETRY_PROVIDERS.md) for metric definitions,
 [REMOTE_MONITORING.md](REMOTE_MONITORING.md) for SSH setup, and

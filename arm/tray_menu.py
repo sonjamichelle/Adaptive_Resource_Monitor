@@ -56,6 +56,7 @@ class TrayMenu(QMenu):
 
         self.addSeparator()
         self.action(self, f"About {NAME}", SP.SP_MessageBoxInformation, app.about)
+        self.action(self, "Check for Updates", SP.SP_BrowserReload, app.check_for_updates)
         self.action(self, "Design Creations Website", SP.SP_DriveNetIcon, app.open_website)
         self.addSeparator()
         self.action(self, f"Exit {NAME}", None, app.qt.quit)

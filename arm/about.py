@@ -20,15 +20,15 @@ from .branding import (
     SUPPORT_URL, WEBSITE, asset, document,
 )
 from .version import NAME, VERSION
+from .update_ui import UpdatePanel
 
 LOG = logging.getLogger(__name__)
 DOCS = {
-    "README.md": "Project Guide",
+    "README.md": "README",
     "CHANGELOG.md": "Change Log",
     "LICENSE.md": "Software License",
     "THIRD_PARTY.md": "Third-party Notices",
 }
-UPDATE_STATUS = "No update channel configured."
 UNINSTALL_KEY = rf"Software\Microsoft\Windows\CurrentVersion\Uninstall\{INSTALL_ID}_is1"
 
 
@@ -129,14 +129,16 @@ class AboutPage(QWidget):
         license_info = ("See Software License below." if "LICENSE.md" in self.documents
                         else "Project license terms unavailable.")
         details.addRow("Software license", QLabel(license_info))
-        details.addRow("Updates", QLabel(UPDATE_STATUS))
-        view = QPushButton("View Details")
+        view = QPushButton("Application Details")
         view.clicked.connect(self.show_details)
         buttons = QHBoxLayout()
         buttons.addWidget(view)
         buttons.addStretch()
         details.addRow(buttons)
         layout.addWidget(information)
+
+        self.updates = UpdatePanel(data_root, installation()[0])
+        layout.addWidget(self.updates)
 
         self.links = QLabel(alignment=center)
         self.links.setWordWrap(True)
@@ -179,7 +181,8 @@ class AboutPage(QWidget):
             }}
         """)
         self.website.setText(link(WEBSITE, "www.designcreations.us", colors.accent))
-        items = [link(name, label, colors.accent) for name, label in self.documents.items()]
+        items = [link(name, name if name in ("README.md", "CHANGELOG.md") else label, colors.accent)
+                 for name, label in self.documents.items()]
         items.append(link(SUPPORT_URL, "Contact & Support", colors.accent))
         self.links.setText(" | ".join(items))
 
@@ -213,7 +216,7 @@ class AboutPage(QWidget):
             ("Source revision", revision),
             ("Platform", f"{platform.system()} · {platform.machine()} · {struct.calcsize('P') * 8}-bit"),
             ("Installation type", kind), ("Installation location", str(directory)),
-            ("Application data", str(self.data_root)), ("Updates", UPDATE_STATUS),
+            ("Application data", str(self.data_root)),
         )
         dialog = QDialog(self)
         dialog.setWindowTitle("Application Details")

@@ -365,7 +365,7 @@ def verify_branding(session, results, captures=None):
     assert menu.version.text() == VERSION and menu.local.isChecked()
     assert not menu.remote.menuAction().isVisible()
     actions = {action.text(): action for action in menu.actions()}
-    assert "Check for Updates" not in actions
+    assert "Check for Updates" in actions
     actions[f"About {NAME}"].trigger()
     assert session.expanded.tabs.currentWidget() is session.about_page
     assert session.about_page.version.text() == VERSION
@@ -388,7 +388,7 @@ def verify_branding(session, results, captures=None):
             details.extend(label.text() for label in dialog.findChildren(QLabel))
             dialog.reject()
     QTimer.singleShot(0, inspect_details)
-    view = next(button for button in session.about_page.findChildren(QPushButton) if button.text() == "View Details")
+    view = next(button for button in session.about_page.findChildren(QPushButton) if button.text() == "Application Details")
     view.click()
     assert "Installation type" in details and "Source checkout" in details and VERSION in details
 
@@ -441,6 +441,7 @@ def evaluate_app(work, results, short=False, captures=None):
     from arm.providers.ssh import update_host_key
     from ssh_fixture import Fixture, SECRET
     from contextlib import ExitStack
+    from threading import Event
     from unittest.mock import patch
 
     assert set_windows_identity() == 0
@@ -511,6 +512,31 @@ def evaluate_app(work, results, short=False, captures=None):
         assert session.icons[LOCAL].icon().cacheKey() != session.brand_icon.cacheKey()
         verify_branding(session, results, captures)
         menu = session.menus[LOCAL]
+        from arm.update_client import Check
+        update = session.about_page.updates
+        lookup = next(action for action in menu.actions() if action.text() == "Check for Updates")
+        entered, release_check = Event(), Event()
+
+        def slow_check(version, kind):
+            entered.set()
+            assert release_check.wait(10)
+            return Check(None, None, ())
+
+        with patch.object(update.client, "check", side_effect=slow_check):
+            try:
+                sample = session.collectors.last[LOCAL]
+                lookup.trigger()
+                assert session.expanded.tabs.currentWidget() is session.about_page
+                wait_for(entered.is_set)
+                assert not update.buttons["Check for Updates"].isEnabled()
+                wait_for(lambda: session.collectors.last[LOCAL] > sample)
+            finally:
+                release_check.set()
+            wait_for(lambda: update.job is None)
+        assert update.fields["Latest published"].text() == "No public releases"
+        assert "UTC" in update.fields["Last successful check"].text()
+        session.expanded.close()
+        results["asynchronous_update_check_with_live_telemetry"] = True
         modes = {}
         for mode in ("Stacked", STATIC_TRAY_MODE, "Overlay", "Composite"):
             menu.modes[mode].trigger()
@@ -657,16 +683,30 @@ def evaluate_app(work, results, short=False, captures=None):
             source = json.loads(store.path.read_text(encoding="utf-8"))
             source.update(hover_machine="@peak", default_machine="@peak")
             store.path.write_text(json.dumps(source), encoding="utf-8")
-        reopened = Application(app, restart_root)
-        try:
-            assert reopened.scopes() == [primary]
-            assert reopened.popup.selected_machine == reopened.expanded.selected_machine == ALL
-            assert reopened.popup.span == 300 and not reopened.popup.pinned
-            assert reopened.settings.targets == stored_targets
-        finally:
-            reopened.close()
+        startup = replace(store.load(), update_startup=True, update_interval=4)
+        if legacy:
+            source["update_startup"] = True
+            source["update_interval"] = 4
+            store.path.write_text(json.dumps(source), encoding="utf-8")
+        else:
+            store.save(startup)
+        from arm.update_client import ReleaseClient
+        with patch.object(ReleaseClient, "check", return_value=Check(None, None, ())) as check:
+            reopened = Application(app, restart_root)
+            try:
+                assert reopened.scopes() == [primary]
+                assert reopened.popup.selected_machine == reopened.expanded.selected_machine == ALL
+                assert reopened.popup.span == 300 and not reopened.popup.pinned
+                assert reopened.settings.targets == stored_targets
+                panel = reopened.about_page.updates
+                assert panel.periodic.isActive() and panel.periodic.interval() == 4 * 3_600_000
+                wait_for(lambda: check.called and panel.job is None)
+                assert panel.fields["Latest published"].text() == "No public releases"
+            finally:
+                reopened.close()
         app.processEvents()
     results["restored_monitor_and_tray"] = "New and legacy settings restored All Systems at five minutes with a separate tray source"
+    results["startup_update_and_periodic_timer"] = True
 
 
 def child(args):

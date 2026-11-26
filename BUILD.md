@@ -27,5 +27,9 @@ Settings and history stay under the user's local app data across upgrades and
 uninstall. Extract the portable ZIP before running AdaptiveResourceMonitor.exe.
 Both packages contain their Python and Qt runtime.
 
-The alpha artifacts are unsigned. An Authenticode signing and distribution
-workflow requires the publisher's certificate and publication authorization.
+Jenkins adds signed release manifests and a pinned build receipt. A local
+build produces packages and SHA-256 hashes. The maintenance executable and
+runtime package both embed VERSION.md and the public verification key.
+See [Jenkins](JENKINS.md) for the signed build workflow. Ed25519 authenticates
+the package hashes in the update manifest. The Windows executables and
+installer use a separate Authenticode trust mechanism.

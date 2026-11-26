@@ -112,6 +112,8 @@ class Settings:
     max_history_mb: int = 128
     history_file: str = ""
     log_level: str = "INFO"
+    update_startup: bool = False
+    update_interval: int = 0
     targets: list[Target] = field(default_factory=list)
 
     @classmethod
@@ -152,6 +154,10 @@ class Settings:
         cfg.network_colors = {key: valid_color(network_colors.get(key), value[1])
                               for key, value in NETWORK.items()}
         cfg.background = valid_color(cfg.background, "#171a22")
+        if not isinstance(cfg.update_startup, bool):
+            cfg.update_startup = False
+        if type(cfg.update_interval) is not int or cfg.update_interval not in (0, 4, 12, 24, 168):
+            cfg.update_interval = 0
         cfg.targets = [Target.from_dict(item) for item in cfg.targets if isinstance(item, dict)] if isinstance(cfg.targets, list) else []
         cfg.targets = list({target.identifier: target for target in cfg.targets}.values())
         legacy_tray = source.get("tray_mode")

@@ -4,4 +4,6 @@ __pycache__/
 build/
 dist/
 release/
+evidence/
+.ci/
 *.spec

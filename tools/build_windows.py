@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from hashlib import file_digest
 from importlib import metadata
 import json
+import os
 from pathlib import Path
 import platform
 import re
@@ -16,7 +17,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from arm.version import NAME, VERSION
+from arm.version import NAME, VERSION, version_key
 from arm.branding import (
     APPLICATION_ICON, APPLICATION_IMAGE, APPLICATION_LOGO, APP_MODEL_ID, BUNDLED_ASSETS,
     COPYRIGHT, DESCRIPTION, INSTALL_ID, PUBLISHER, SUPPORT_URL, WEBSITE,
@@ -87,16 +88,25 @@ def build_info():
                 data[key] = bool(value) if key == "source_modified" else value
     except FileNotFoundError:
         pass
+    if "BUILD_NUMBER" in os.environ and "JENKINS_URL" in os.environ:
+        number = os.environ["BUILD_NUMBER"]
+        if not number.isdecimal() or int(number) < 1 or data.get("source_modified") is not False:
+            raise RuntimeError("Jenkins requires a clean, numbered source checkout")
+        revision = data.get("source_revision")
+        if not re.fullmatch(r"[0-9a-f]{40}", revision or "") or revision != os.environ.get("ARM_SOURCE_COMMIT"):
+            raise RuntimeError("Jenkins source commit does not match the build")
+        data["jenkins_build"] = int(number)
     return data
 
 
 def build(compiler, output):
     if platform.system() != "Windows" or struct.calcsize("P") != 8 or platform.machine().lower() not in ("amd64", "x86_64"):
         raise RuntimeError("Use native x64 Windows Python")
-    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)\.(\d+)_([a-z]+)", VERSION)
-    if not match:
-        raise ValueError("Unexpected ARM version format")
-    numbers = tuple(int(value) for value in match.groups()[:4])
+    numbers = version_key(VERSION)[:4]
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    if not re.search(rf"^## {re.escape(VERSION)}\s", changelog, re.M):
+        raise RuntimeError("CHANGELOG.md does not contain the authoritative version")
+    identity = build_info()
     output.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="arm-release-") as temporary:
         temporary = Path(temporary)
@@ -108,6 +118,15 @@ def build(compiler, output):
             encoding="utf-8",
         )
         assets = [part for asset in BUNDLED_ASSETS for part in ("--add-data", f"{ROOT / asset};branding")]
+        update_data = [part for name in ("VERSION.md", "update-source.json") for part in ("--add-data", f"{ROOT / name};.")]
+        worker_name = "AdaptiveResourceMonitorMaintenance"
+        run([
+            sys.executable, "-m", "PyInstaller", "--noconfirm", "--noupx", "--windowed", "--onefile",
+            "--name", worker_name, "--paths", str(ROOT), "--workpath", str(temporary / "work"),
+            "--distpath", str(temporary / "maintenance"), "--specpath", str(temporary),
+            "--version-file", str(version_file), "--manifest", str(ROOT / "packaging" / "windows.manifest"),
+            "--icon", str(ICON), "--exclude-module", "PySide6", *update_data, str(ROOT / "tools" / "maintenance.py"),
+        ])
         run([
             sys.executable, "-m", "PyInstaller", "--noconfirm", "--noupx", "--windowed",
             "--name", "AdaptiveResourceMonitor", "--paths", str(ROOT),
@@ -116,14 +135,16 @@ def build(compiler, output):
             "--manifest", str(ROOT / "packaging" / "windows.manifest"),
             "--icon", str(ICON),
             *assets,
+            *update_data,
             "--add-data", f"{ROOT / 'arm' / 'providers' / 'linux_probe.sh'};arm/providers",
             "--hidden-import", "pynvml", "--exclude-module", "tkinter",
             str(ROOT / "monitor.pyw"),
         ])
         payload = temporary / "dist" / "AdaptiveResourceMonitor"
+        shutil.copyfile(temporary / "maintenance" / f"{worker_name}.exe", payload / f"{worker_name}.exe")
         (payload / "VERSION.txt").write_text(VERSION + "\n", encoding="utf-8")
-        (payload / "BUILD.json").write_text(json.dumps(build_info(), indent=2) + "\n", encoding="utf-8")
-        for name in ("README.md", "SECURITY.md", "REMOTE_MONITORING.md", "CHANGELOG.md"):
+        (payload / "BUILD.json").write_text(json.dumps(identity, indent=2) + "\n", encoding="utf-8")
+        for name in ("README.md", "SECURITY.md", "REMOTE_MONITORING.md", "CHANGELOG.md", "VERSION.md"):
             shutil.copyfile(ROOT / name, payload / name)
         if (ROOT / "LICENSE.md").is_file():
             shutil.copyfile(ROOT / "LICENSE.md", payload / "LICENSE.md")

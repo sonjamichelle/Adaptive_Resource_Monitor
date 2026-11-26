@@ -18,3 +18,19 @@ user under %LOCALAPPDATA%\Adaptive Resource Monitor. History and device names
 can reveal information about the monitored environment. The portable package
 also uses this user directory. Uninstall preserves the user data. No remote
 host is contacted until a target is enabled or tested.
+
+## Application updates
+
+Update checks and downloads use HTTPS with certificate validation and anonymous
+access. The application pins its Ed25519 public key. It checks the signed
+version, application identity, architecture, filenames, types and sizes, then
+verifies SHA-256 before staging and again before installation. Explicit user
+approval is required to install. The maintenance launcher handles application
+files and installer registration. ARM's telemetry profile and credentials
+remain in the existing per-user stores.
+
+The Jenkins ARM folder holds the private signing credential. The client bundles
+only the public key. A signed manifest binds the downloaded bytes to ARM's
+release identity. Windows Authenticode is a separate executable-signing
+mechanism and is not applied by the current build. See
+[Update mechanism](UPDATE_MECHANISM.md) and [Release process](RELEASE_PROCESS.md).

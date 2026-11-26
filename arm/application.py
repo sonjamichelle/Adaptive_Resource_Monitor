@@ -82,6 +82,8 @@ class Application(QObject):
         self.icons = {}
         self.menus = {}
         self.about_page = AboutPage(self.root)
+        self.about_page.updates.notify.connect(self.update_notice)
+        self.about_page.updates.quit_requested.connect(self.qt.quit)
         self.expanded = Monitor(self.dashboard, True, self.request_archive, self.open_expanded,
                                 self.set_pin, self.about_page)
         self.expanded.setWindowIcon(self.brand_icon)
@@ -129,6 +131,7 @@ class Application(QObject):
         self.expanded.sync()
         self.restore_monitor()
         self.render()
+        self.about_page.updates.configure(settings)
 
     def configure_history(self):
         cfg = self.settings
@@ -190,6 +193,7 @@ class Application(QObject):
             icon = QSystemTrayIcon(self)
             icon.setIcon(self.brand_icon)
             icon.activated.connect(partial(self.activate_icon, machine))
+            icon.messageClicked.connect(self.about)
             self.icons[machine] = icon
             self.menus[machine] = TrayMenu(self, machine)
             self.menus[machine].theme(self.brand_colors)
@@ -489,6 +493,15 @@ class Application(QObject):
     def about(self):
         self.expanded.show_page(about=True)
 
+    def check_for_updates(self):
+        self.about()
+        self.about_page.updates.check_now()
+
+    def update_notice(self, version):
+        icon = self.icons.get(self.settings.tray_machine)
+        if icon:
+            icon.showMessage(NAME, f"Verified update {version} is available. Open About for details.")
+
     def open_website(self):
         QDesktopServices.openUrl(QUrl(WEBSITE))
 
@@ -496,6 +509,7 @@ class Application(QObject):
         if self._closed:
             return
         self._closed = True
+        self.about_page.updates.stop()
         for timer in (self.tray_timer, self.hover_timer, self.view_timer):
             timer.stop()
         for icon in self.icons.values():
@@ -531,6 +545,8 @@ def main():
         controller = Application(app, root)
         if not controller.settings.minimized:
             controller.open_expanded()
+        from .update_worker import signal_ready
+        signal_ready()
         return app.exec()
     finally:
         if controller is not None:

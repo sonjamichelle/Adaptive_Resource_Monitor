@@ -92,9 +92,6 @@ behavior on a private native Windows desktop.
 | All Systems hover | 12 s | 0.358% | 5.729% | 159.46 MiB |
 | All Systems expanded | 12 s | 0.260% | 4.167% | 162.32 MiB |
 
-### Native captures
-
-
 ### Release verification and cleanup
 
 All 17 automated tests passed. Native tray and About regression checks also

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.1.1_alpha — 2026-11-26
+
+- Added signed update discovery, verified downloads and authorized installation for installed and portable Windows x64 editions.
+- Added Jenkins build, signing and archive automation and an explicitly invoked publication workflow for Gitea releases.
+
 ## v0.4.1.1_alpha — 2026-11-26
 
 - Removed Aggregate - Peak and migrated saved selections to All Systems.

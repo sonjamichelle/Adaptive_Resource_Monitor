@@ -43,16 +43,21 @@ Name: "startup"; Description: "Start Adaptive Resource Monitor with Windows"; Fl
 Source: "{#Payload}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#Product}"; Filename: "{app}\{#Executable}"; IconFilename: "{app}\{#Executable}"; AppUserModelID: "{#AppModelId}"
-Name: "{userdesktop}\{#Product}"; Filename: "{app}\{#Executable}"; IconFilename: "{app}\{#Executable}"; AppUserModelID: "{#AppModelId}"; Tasks: desktopicon
+Name: "{group}\{#Product}"; Filename: "{app}\{#Executable}"; IconFilename: "{app}\{#Executable}"; AppUserModelID: "{#AppModelId}"; Check: not ArmUpdate
+Name: "{userdesktop}\{#Product}"; Filename: "{app}\{#Executable}"; IconFilename: "{app}\{#Executable}"; AppUserModelID: "{#AppModelId}"; Tasks: desktopicon; Check: not ArmUpdate
 
 [Registry]
-Root: HKCU; Subkey: "{#RunKey}"; ValueType: string; ValueName: "AdaptiveResourceMonitor"; ValueData: """{app}\{#Executable}"""; Tasks: startup
+Root: HKCU; Subkey: "{#RunKey}"; ValueType: string; ValueName: "AdaptiveResourceMonitor"; ValueData: """{app}\{#Executable}"""; Tasks: startup; Check: not ArmUpdate
 
 [Run]
 Filename: "{app}\{#Executable}"; Description: "Open Adaptive Resource Monitor"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function ArmUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:ARMUPDATE|0}') = '1';
+end;
+
 procedure CurUninstallStepChanged(Step: TUninstallStep);
 var
   Value, Target: String;
