@@ -170,26 +170,34 @@ class Network(Counters):
     def __init__(self, settings):
         super().__init__(settings)
         self.selected = settings.interfaces
+        self.identities = {}
 
     def sample(self):
         stamp, now = time(), monotonic()
         rows = psutil.net_io_counters(pernic=True, nowrap=False) or {}
         stats = psutil.net_if_stats()
         native = interface_info()
-        selected = self.selected or [key for key in rows if native.get(key, (False, 0, 0))[0]]
+        absent = (False, 0, 0, None)
+        selected = self.selected or [key for key in rows if native.get(key, absent)[0]]
+        identities = {key: (native.get(key, absent)[3], stats[key].isup if key in stats else None)
+                      for key in rows}
 
         def convert(key, row, previous, elapsed):
+            if self.identities.get(key) != identities[key]:
+                previous = None
             values = deltas(row, previous, ("bytes_recv", "bytes_sent"), elapsed, self.interval)
             stat = stats.get(key)
             up = stat.isup if stat else None
-            _, tx_link, rx_link = native.get(key, (False, 0, 0))
+            _, tx_link, rx_link, _ = native.get(key, absent)
             if tx_link in (0, 2**64 - 1):
                 tx_link = (stat.speed * 1e6) if stat and stat.speed > 0 else 0
             if rx_link in (0, 2**64 - 1):
                 rx_link = (stat.speed * 1e6) if stat and stat.speed > 0 else 0
             return net_metrics(*values, up, rx_link / 1e6 if up else None, tx_link / 1e6 if up else None)
 
-        return self.measure(stamp, now, rows, selected, convert)
+        sample = self.measure(stamp, now, rows, selected, convert)
+        self.identities = identities
+        return sample
 
 
 def os_name():

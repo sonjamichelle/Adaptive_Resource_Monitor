@@ -1,5 +1,130 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.4.1.1_alpha — Independent tray machine
+
+The Minor counter advanced from 0 to 1. The existing Major, Feature and
+Bugfix counters and alpha classification carry forward from v0.4.0.1_alpha.
+
+The hover monitor, expanded window and Monitor Machine menu offer Local
+Machine, individual configured remotes and All Systems. All Systems shows
+six independent resource charts for each enabled machine, including separate
+network IN and OUT traces. The primary icon reads one source chosen under
+Settings → Tray Icon → Tray icon machine. Local Machine is the default.
+Optional individual icons honor each remote's tray setting. Overlay, Stacked
+and Composite use resources from the icon's machine. The branded Application
+Icon is still available in Settings and during initialization.
+
+Saved legacy Aggregate - Peak monitor selections load as All Systems. Legacy
+explicit tray remotes and the separate-icon preference carry forward. If the
+legacy consolidated setting supplied the implicit monitor scope, the monitor
+opens in All Systems and the tray icon uses Local Machine. The next settings
+save writes the current fields. The migration leaves the telemetry and history
+formats intact.
+
+### Acceptance checks
+
+- All 18 automated model and provider tests passed, including legacy settings,
+  persisted monitor and tray selections, archived history, directional network
+  rates and independent collectors.
+- Native application checks passed on private Windows desktops at 100% and 150%
+  Qt scaling. The local computer and two loopback SSH targets each had six
+  independent All Systems charts. Both remote network charts drew IN and OUT
+  from their own samples. The test switched the monitor among All Systems,
+  Local Machine and a different remote while the primary icon continued to
+  draw from the same configured remote. Separate icons drew from all three
+  individual sources. New and legacy settings restored the monitor and tray
+  selections on fresh application instances.
+- Verified the portable ZIP CRC and both release-file hashes, x64 executable
+  headers, embedded icons and brand metadata. The portable executable opened
+  and shut down twice on a private Windows desktop.
+- Tested the installer recipe with the release payload and a disposable AppId.
+  Installation of v0.4.0.1_alpha, upgrade to v0.4.1.1_alpha and uninstall
+  each returned 0. The native wizard displayed the release version. All 292
+  installed files matched the release payload. The upgraded executable opened
+  and shut down twice. The test settings, credential reference, trust file and
+  history fixture survived. The existing installation, startup value, settings
+  and SSH trust matched their pre-test values.
+- Actual Explorer notification-area hover and an in-place production upgrade
+  remain unverified for this version. The private desktops supplied no Explorer
+  tray rectangle. Remote validation for this revision used loopback SSH targets.
+
+### Windows x64 release
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| [Installer](release/v0.4.1.1_alpha/AdaptiveResourceMonitor-v0.4.1.1_alpha-windows-x64-setup.exe) | 44,507,774 | 5f82d702cb44318c72a2e4bd7053b42f7387785d2978f9ed5ee6915b6b554900 |
+| [Portable ZIP](release/v0.4.1.1_alpha/AdaptiveResourceMonitor-v0.4.1.1_alpha-windows-x64-portable.zip) | 58,360,489 | 841b67a14d593f26369983e78f271b550f4a221de7de695adefb0f7567532b95 |
+
+The [checksum manifest](release/v0.4.1.1_alpha/SHA256SUMS.txt) accompanies both
+files. Removed the test installation, staged dependencies and compiler, test
+installers and extracted payloads, build intermediates, isolated profiles,
+test data and diagnostics. Build and QA staging accounted for **847,063,485
+bytes** of removed files by logical size. Retained the two release packages
+and their manifest as deliverables. Earlier releases and historical evidence
+remain available.
+
+## v0.4.0.1_alpha — Simultaneous monitoring
+
+The Feature counter advanced twice for simultaneous monitoring and
+bidirectional network visualization. The Bugfix counter advanced once
+for hover selection persistence. The existing collector architecture,
+About tab and branding remain in use.
+
+The production feedback for v0.2.0.0_alpha established native installation,
+Explorer hover activation, popup pinning, local telemetry and remote
+connections to Linux target A, Linux target B and Linux target C. The checks below cover the new
+behavior on a private native Windows desktop.
+
+| Requirement | Implementation and verification |
+| --- | --- |
+| Independent simultaneous views | All Systems renders one row of six resource plots per enabled machine in the hover and expanded monitors. Expanded rows have a Measurements control. The private desktop showed Local Machine, Linux target A, Linux target B and Linux target C together, and a smaller popup viewport exercised both scrollbars. |
+| Tray modes | Overlay, Stacked, Composite and Application Icon passed native regression checks. |
+| Persistent hover selections | The shared machine selection and hover history range write immediately. Native tests covered dismiss and reopen, pin and unpin, opening and closing the expanded window, minimize and restore, an SSH disconnect and reconnect, and a fresh application process restoring All Systems and the five-minute interval. |
+| Independent sampling | The collectors already own separate workers and intervals. An automated stalled-SSH test verified a second worker continued collecting. Live checks observed three distinct SSH workers and separate per-machine histories, with a one-second local interval and two-second remote intervals. |
+| Network directions | IN is green and OUT is red by default. Both colors are configurable. A network chart uses one throughput scale across both directions, including the individual interface and archived-data views. Tests covered shared auto and fixed spans, Windows interface replacement, Linux interface replacement, reset and reboot, and legacy combined records. Linux target C produced 20 nonzero live samples in each direction during the run. |
+| Existing data | Native monitoring used temporary copies of the existing settings and known-hosts files with the existing credential references. Original files passed before-and-after verification. The existing selected local interfaces reported zero traffic during this run. Linux target C showed unavailable GPU and VRAM values. |
+
+### Resource use with four connected machines
+
+| View | Sample time | CPU, whole workstation | CPU, one logical processor | Working set |
+| --- | ---: | ---: | ---: | ---: |
+| Tray | 12 s | 0.269% | 4.297% | 152.11 MiB |
+| All Systems hover | 12 s | 0.358% | 5.729% | 159.46 MiB |
+| All Systems expanded | 12 s | 0.260% | 4.167% | 162.32 MiB |
+
+### Native captures
+
+
+### Release verification and cleanup
+
+All 17 automated tests passed. Native tray and About regression checks also
+passed at 150% Qt scaling. The final portable executable opened and shut
+down twice on the private desktop. The final setup and executable passed
+x64 and embedded icon checks.
+
+The disposable upgrade used the v0.2.0.0_alpha and v0.4.0.1_alpha frozen
+payloads with the release installer recipe and a separate test AppId.
+Installation, upgrade and uninstall returned 0. The upgraded installed
+executable opened and shut down twice. The settings and original
+credential references remained byte-for-byte intact. The copied database
+retained its legacy combined reading and received new IN and OUT records.
+The production installation and its profile and trust files passed
+before-and-after verification. The in-place upgrade and new live Explorer
+hover on the active desktop remain production acceptance checks.
+
+| Final release file | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Windows x64 installer | 44,510,942 | 14df73209ad422e5a7075a75a03cebbedbc41d5a3f72a26a17382734ccccf571 |
+| Windows x64 portable ZIP | 58,362,591 | 753ee08ba4c8b452c56cbc560efd3c19e6cef5e583564f165e8d3269ab28f4a6 |
+
+Cleanup removed build staging, the compiler and dependencies, test profile
+copies, portable extractions, disposable installs and installers, and
+interim screenshots. Measured files reclaimed totaled 1,215,378,958 bytes
+(1.13 GiB), excluding short-lived unit-test scratch files. The six requested
+screenshots, current release and checksum manifest remain. The previous
+release packages were retained because v0.2.0.0_alpha is still the
+production installation.
+
 ## v0.2.0.0_alpha — Design Creations branding
 
 The Feature counter advanced from 1 to 2 for the new About tab and selectable
@@ -67,9 +192,9 @@ along with the source, supplied artwork, documentation and maintained tests.
 
 | Requirement | Implementation | Automated evidence | Native or live evidence and limits |
 | --- | --- | --- | --- |
-| Dynamic Windows tray and Overlay, Stacked, Composite | Implemented using QSystemTrayIcon and QPainter | Resource normalization and peak aggregation tests | Native Qt builds distinct icon images for all three modes. Explorer registration and recovery need a live taskbar. |
+| Dynamic Windows tray and Overlay, Stacked, Composite | Implemented using QSystemTrayIcon and QPainter | Resource normalization and per-machine Composite tests | Native Qt builds distinct icon images for all three modes. Explorer registration and recovery need a live taskbar. |
 | Custom popup, sizing, dismissal and pinning | Implemented with Windows cursor position and Qt's native notification-area rectangle | Hover state, dismissal, placement and negative-coordinate tests | Popup, six graphs and pinning exercised on a private desktop. Actual pointer movement over an Explorer icon, desktop sleep/resume, and physical mixed-DPI taskbars remain open. |
-| Expanded monitor, ranges and multiple machines | Implemented with resource charts, per-device detail, current and history statistics, connection state and timestamps | History and machine-peak tests | Expanded window, live values and device selection exercised. Archived statistics use retained plot observations for long selections. |
+| Expanded monitor, ranges and multiple machines | Implemented with resource charts, per-device detail, current and history statistics, connection state and timestamps | History and independent machine tests | Expanded window, live values and device selection exercised. Archived statistics use retained plot observations for long selections. |
 | Windows CPU and memory | Implemented using timed CPU deltas, physical and logical topology, memory, commit and pagefile | First-sample and native provider tests | Verified workstation telemetry. Windows CPU temperature and power are unsupported in this alpha. |
 | AMD, Intel, NVIDIA and dedicated VRAM | Implemented with DXGI PCI identity, native WDDM engine and memory counters and NVIDIA NVML sensors | Engine aggregation, valid zero, matched capacity and sampled provider tests | AMD Radeon 780M and NVIDIA RTX 5050 Laptop GPU detected with native readings. No Intel GPU was available. AMD and Intel use WDDM counters on Windows and expose only the features supplied by those counters. Vendor clock, thermal, fan and power readings for these two vendors on Windows are deferred. |
 | Storage and network | Implemented with whole physical disk counters, mode selection, directional network data and default physical-adapter inclusion | Counter reset and network-selection fixtures | Two physical drives and active network throughput verified. No live 10 GbE, VPN or storage pool validation. |
@@ -95,7 +220,7 @@ procfs, sysfs and hardware validation is represented separately in the matrix.
 
 The native Windows GUI suite passed at 100% scale and its smoke run passed at
 150% scale. The full run produced distinct Overlay, Stacked and Composite
-icon images and exercised separate and consolidated tray objects, popup
+icon images and exercised single and separate tray objects, popup
 pinning, expanded graphs, settings and target management. The two concurrent
 SSH fixtures delivered 13 and 7 readings. The AMD Radeon 780M and NVIDIA
 GeForce RTX 5050 Laptop GPU both supplied dedicated memory readings. The

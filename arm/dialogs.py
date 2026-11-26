@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from .config import TRAY_MODES
-from .model import DISK_MODES, LOCAL, RANGES, RESOURCES, Connection
+from .model import DISK_MODES, LOCAL, NETWORK, RANGES, RESOURCES, Connection
 from .views import fill, interval_choices, machine_choices, plain
 
 
@@ -102,6 +102,7 @@ class SettingsDialog(QDialog):
         self.controls = {}
         self.tabs = QTabWidget()
         self.colors = dict(self.cfg.colors)
+        self.network_colors = dict(self.cfg.network_colors)
         self.background = self.cfg.background
         layout = QVBoxLayout(self)
         layout.addWidget(self.tabs)
@@ -163,10 +164,9 @@ class SettingsDialog(QDialog):
     def tray(self):
         form = self.section("Tray Icon")
         self.select(form, "Visualization", "mode", [(v, v) for v in TRAY_MODES])
-        self.select(form, "Machine icons", "tray_mode",
-                    [(v, v) for v in ("Local", "Selected remote", "Separate", "Consolidated")])
-        self.select(form, "Selected remote machine", "tray_remote",
-                    [("Choose a target", "")] + [(t.name, t.identifier) for t in self.cfg.targets])
+        self.select(form, "Tray icon machine", "tray_machine",
+                    [("Local Machine", LOCAL)] + [(t.name, t.identifier) for t in self.cfg.targets])
+        self.check(form, "Separate machine icons", "separate_tray_icons")
         self.select(form, "Refresh", "tray_refresh", interval_choices())
         self.select(form, "History range", "tray_range", [(v, k) for k, v in RANGES.items() if k <= 3600])
         self.select(form, "Disk graph", "disk_mode", [(v, k) for k, v in DISK_MODES.items()])
@@ -176,7 +176,9 @@ class SettingsDialog(QDialog):
         self.resource_choices(form, "Visible resources", "resources")
         self.check(form, "Transparent background", "transparent")
         for key, title, color in [("background", "Background", self.background)] + [
-            (key, info[0], self.colors[key]) for key, info in RESOURCES.items()
+            (key, info[0], self.colors[key]) for key, info in RESOURCES.items() if key != "net"
+        ] + [
+            (key, f"Network {direction}", self.network_colors[key]) for key, (direction, _) in NETWORK.items()
         ]:
             button = QPushButton(color)
             button.clicked.connect(lambda _, key=key, button=button: self.choose_color(key, button))
@@ -188,6 +190,8 @@ class SettingsDialog(QDialog):
             button.setText(color.name())
             if key == "background":
                 self.background = color.name()
+            elif key in NETWORK:
+                self.network_colors[key] = color.name()
             else:
                 self.colors[key] = color.name()
 
@@ -247,7 +251,8 @@ class SettingsDialog(QDialog):
 
     def save(self):
         updates = {key: getter() for key, getter in self.controls.items()}
-        cfg = replace(self.app.settings, **updates, background=self.background, colors=self.colors)
+        cfg = replace(self.app.settings, **updates, background=self.background, colors=self.colors,
+                      network_colors=self.network_colors)
         try:
             self.app.apply(cfg)
             if self.startup.isChecked() != self.app.startup_enabled():

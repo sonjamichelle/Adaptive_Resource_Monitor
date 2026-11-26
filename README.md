@@ -14,8 +14,19 @@ required. The default configuration monitors only the local machine and keeps
 history in memory.
 
 The tray menu also offers an Application Icon display. The branded fallback
-appears while monitoring initializes. Monitor Machine selects the history
-shown by that tray icon and its popup. Open the About tab from the monitor
+appears while monitoring initializes. In Settings → Tray Icon, choose the
+machine for the primary icon. It defaults to Local Machine. Enable Separate
+machine icons to also show icons for Local Machine and remote targets with
+their tray option enabled.
+
+Monitor Machine selects the history shown in the hover and expanded
+monitors. All Systems shows six independent graphs for every enabled
+machine. Changing the monitor selection leaves the tray icon source as
+configured in Settings. Hover machine and history selections save as you
+change them. Network IN and OUT have configurable colors and share one
+throughput scale per machine.
+
+Open the About tab from the monitor
 window or tray menu for build information, version history and support links.
 
 The application version is defined in [arm/version.py](arm/version.py).

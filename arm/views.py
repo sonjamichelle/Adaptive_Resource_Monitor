@@ -1,13 +1,14 @@
 from time import time, strftime, localtime
 
-from PySide6.QtCore import Qt, QSignalBlocker, QTimer
+from PySide6.QtCore import QSize, Qt, QSignalBlocker, QTimer
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QFrame, QGridLayout, QHeaderView, QHBoxLayout, QLabel,
-    QPushButton, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
 )
 
-from .graphs import Plot, metric_for
-from .model import ALL, LOCAL, TOTAL, Connection, INTERVALS, RANGES, RESOURCES, format_value
+from .graphs import Plot, resource_series, selected_resource
+from .model import ALL, LOCAL, NETWORK, TOTAL, Connection, INTERVALS, RANGES, RESOURCES, format_value
 
 METRIC_NAMES = {
     "cpu.util": "CPU utilization", "cpu.frequency": "Frequency", "cpu.temperature": "CPU temperature",
@@ -40,7 +41,7 @@ def fill(combo, values, selected=None):
 
 
 def machine_choices(dashboard):
-    return [(dashboard.name(machine), machine) for machine in dashboard.machines()] + [("All Systems", ALL)]
+    return [(dashboard.name(machine), machine) for machine in (*dashboard.machines(), ALL)]
 
 
 def interval_choices():
@@ -74,24 +75,83 @@ def display_value(item):
 
 
 class Card(QFrame):
-    def __init__(self, resource, detailed):
+    def __init__(self, resource, detailed, compact=False):
         super().__init__()
         self.title = heading(QLabel(RESOURCES[resource][0]))
         self.value = plain()
         self.plot = Plot()
+        self.plot.setAccessibleName(f"{RESOURCES[resource][0]} history")
         self.footer = plain()
         self.footer.setWordWrap(True)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 3, 6, 4)
-        layout.setSpacing(3)
+        margins = (5, 1, 5, 2) if compact else (6, 3, 6, 4)
+        layout.setContentsMargins(*margins)
+        layout.setSpacing(1 if compact else 3)
         row = QHBoxLayout()
         row.addWidget(self.title, 0)
         row.addStretch()
-        row.addWidget(self.value)
-        layout.addLayout(row)
+        self.direction_labels = {}
+        if resource == "net":
+            layout.addLayout(row)
+            self.direction_labels = {metric: plain() for metric in NETWORK}
+            for label in self.direction_labels.values():
+                layout.addWidget(label)
+        elif compact:
+            layout.addLayout(row)
+            layout.addWidget(self.value)
+        else:
+            row.addWidget(self.value)
+            layout.addLayout(row)
         layout.addWidget(self.plot, 1)
         layout.addWidget(self.footer)
-        self.footer.setVisible(detailed)
+        self.footer.setVisible(detailed and not compact)
+        if compact:
+            self.setMinimumWidth(124)
+            self.plot.setFixedHeight(34 if detailed else 30)
+
+
+def measurements_table():
+    table = QTableWidget(0, 6)
+    table.setHorizontalHeaderLabels(("Metric", "Current", "Minimum", "Maximum", "Average", "Machine / device"))
+    table.verticalHeader().setVisible(False)
+    table.setAlternatingRowColors(True)
+    table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+    header = table.horizontalHeader()
+    header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+    header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+    return table
+
+
+class MachineSection(QFrame):
+    def __init__(self, expanded, refresh):
+        super().__init__()
+        self.setFrameShape(QFrame.Shape.StyledPanel)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.title = heading(plain())
+        self.title.setWordWrap(True)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(5, 4, 5, 4)
+        layout.setSpacing(2)
+        header = QHBoxLayout()
+        header.addWidget(self.title, 1)
+        layout.addLayout(header)
+        self.cards = {kind: Card(kind, detailed=expanded, compact=True) for kind in RESOURCES}
+        grid = QGridLayout()
+        grid.setSpacing(3)
+        for column, card in enumerate(self.cards.values()):
+            grid.addWidget(card, 0, column)
+            grid.setColumnStretch(column, 1)
+        layout.addLayout(grid)
+        self.table = measurements_table() if expanded else None
+        if self.table is not None:
+            self.table.setFixedHeight(185)
+            layout.addWidget(self.table)
+            self.table.hide()
+            details = QPushButton("Measurements")
+            details.setCheckable(True)
+            details.toggled.connect(self.table.setVisible)
+            details.toggled.connect(refresh)
+            header.addWidget(details)
 
 
 class Monitor(QWidget):
@@ -147,17 +207,25 @@ class Monitor(QWidget):
         layout.setSpacing(4)
         layout.addLayout(top)
         layout.addWidget(self.header)
-        layout.addLayout(self.grid, 3)
+        self.single = QWidget()
+        single_layout = QVBoxLayout(self.single)
+        single_layout.setContentsMargins(0, 0, 0, 0)
+        single_layout.addLayout(self.grid, 3)
+        layout.addWidget(self.single, 1)
+        self.simultaneous = QScrollArea()
+        self.simultaneous.setWidgetResizable(True)
+        self.simultaneous.setAccessibleName("Individual machine histories")
+        groups = QWidget()
+        self.group_rows = QVBoxLayout(groups)
+        self.group_rows.setContentsMargins(1, 1, 1, 1)
+        self.group_rows.setSpacing(4)
+        self.group_rows.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.simultaneous.setWidget(groups)
+        layout.addWidget(self.simultaneous, 1)
+        self.sections = {}
         if expanded:
-            self.table = QTableWidget(0, 6)
-            self.table.setHorizontalHeaderLabels(("Metric", "Current", "Minimum", "Maximum", "Average", "Machine / device"))
-            self.table.verticalHeader().setVisible(False)
-            self.table.setAlternatingRowColors(True)
-            self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-            header = self.table.horizontalHeader()
-            header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-            header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-            layout.addWidget(self.table, 2)
+            self.table = measurements_table()
+            single_layout.addWidget(self.table, 2)
             self.resize(900, 690)
             self.machine.currentIndexChanged.connect(self.sync_devices)
             self.device.currentIndexChanged.connect(self.selection_changed)
@@ -207,10 +275,20 @@ class Monitor(QWidget):
     def span(self):
         return self.interval.currentData() or 60
 
+    def popup_size(self):
+        cfg = self.dashboard.settings
+        if self.selected_machine != ALL:
+            return QSize(cfg.popup_width, cfg.popup_height)
+        # Cap in HoverMonitor against the work area. The scroll area keeps
+        # six columns together even on a narrow monitor.
+        rows_height = sum(max(138, section.sizeHint().height()) for section in self.sections.values())
+        return QSize(max(cfg.popup_width, 875), max(cfg.popup_height, rows_height + 72))
+
     def sync_devices(self):
         if not self.expanded:
             return
         machine = self.selected_machine
+        self.device.setVisible(machine != ALL)
         devices = self.dashboard.collectors.devices.get(machine, {})
         kinds = {"cpu": "CPU", "gpu": "GPU", "disk": "Disk", "net": "Network"}
         values = [("Selected devices · aggregate", ("", TOTAL))] + [
@@ -223,11 +301,11 @@ class Monitor(QWidget):
 
     def sync(self):
         settings = self.dashboard.settings
-        fill(self.machine, machine_choices(self.dashboard), self.machine.currentData() or settings.default_machine)
+        fill(self.machine, machine_choices(self.dashboard),
+             self.machine.currentData() or settings.hover_machine or settings.default_machine)
         ranges = [(label, span) for span, label in RANGES.items()
                   if span <= 3600 or (self.expanded and settings.persistent and span <= settings.retention_days * 86400)]
-        fill(self.interval, ranges, (self.interval.currentData() or
-                                     (60 if self.expanded else settings.hover_range)))
+        fill(self.interval, ranges, (self.interval.currentData() or 60) if self.expanded else settings.hover_range)
         self.sync_devices()
         columns = 2 if self.expanded else settings.popup_columns
         kinds = tuple(self.cards) if self.expanded else tuple(
@@ -237,16 +315,38 @@ class Monitor(QWidget):
             card.setVisible(resource in kinds)
         for index, kind in enumerate(kinds):
             self.grid.addWidget(self.cards[kind], index // columns, index % columns)
-        if not self.expanded:
-            self.resize(settings.popup_width, settings.popup_height)
+        self.sync_sections()
 
     def set_machine(self, machine):
         index = self.machine.findData(machine)
         if index >= 0:
-            self.machine.setCurrentIndex(index)
-        self.refresh()
+            with QSignalBlocker(self.machine):
+                self.machine.setCurrentIndex(index)
+        self.sync_devices()
+        self.sync_sections()
+        if self.monitor_visible:
+            self.selection_changed()
+
+    def sync_sections(self):
+        both = self.selected_machine == ALL
+        self.single.setVisible(not both)
+        self.simultaneous.setVisible(both)
+        if not both:
+            return
+        machines = self.dashboard.monitored()
+        for machine in self.sections.keys() - set(machines):
+            section = self.sections.pop(machine)
+            self.group_rows.removeWidget(section)
+            section.hide()
+            section.deleteLater()
+        for index, machine in enumerate(machines):
+            if machine not in self.sections:
+                section = MachineSection(self.expanded, self.refresh)
+                self.sections[machine] = section
+                self.group_rows.insertWidget(index, section)
 
     def selection_changed(self):
+        self.sync_sections()
         if self.monitor_visible:
             self.refresh()
             self.archive_due.start()
@@ -258,81 +358,109 @@ class Monitor(QWidget):
     def refresh(self):
         self.sync_devices()
         now, span, scope = time(), self.span, self.selected_machine
-        collectors = self.dashboard.collectors
         cfg = self.dashboard.settings
+        archive = self.expanded and cfg.persistent
         if scope == ALL:
-            online = sum(self.dashboard.state(machine) == Connection.ONLINE for machine in self.dashboard.machines())
-            text = f"{online}/{len(self.dashboard.machines())} connected · Peak per resource"
-        else:
-            status = collectors.statuses.get(scope)
-            os_label = collectors.systems.get(scope) or next(
-                (t.os_type for t in cfg.targets if t.identifier == scope), "")
-            last = collectors.last.get(scope)
-            last_text = f" · Last sample {strftime('%H:%M:%S', localtime(last))}" if self.expanded and last else ""
-            text = f"{os_label} · {self.dashboard.state(scope)} · Sample {self.dashboard.interval(scope):g} s{last_text}"
-            if status and status.detail:
-                text += f" · {status.detail}"
-            if self.expanded:
-                cpu_name = next((d.name for d in collectors.devices[scope].values() if d.kind == "cpu-info"), "")
-                if cpu_name:
-                    text += f" · {cpu_name}"
+            self.sync_sections()
+            self.refresh_sections(now, span, archive)
+            return
+        text = self.scope_status(scope)
         set_label(self.header, text + f" · Tray {cfg.tray_refresh:g} s")
         device_kind, selected = self.selection
-        archive = self.expanded and cfg.persistent
         for kind, card in self.cards.items():
             if not self.expanded and kind not in cfg.hover_resources:
                 continue
-            metric = metric_for(kind, cfg)
             selected_device = selected if kind == device_kind or (kind == "vram" and device_kind == "gpu") else TOTAL
-            chart, scale, gap, current, machine, _ = self.dashboard.get(
-                scope, kind, metric, selected_device, span, now, max(20, card.plot.width()), archive)
-            label = display_value(current)
-            if machine and scope == ALL:
-                label += f" · {self.dashboard.name(machine)}"
-            if kind in ("ram", "vram") and scope != ALL:
-                key = "ram.used" if kind == "ram" else "gpu.vram_used"
-                actual = collectors.history.latest(scope, selected_device, key)
-                if actual and actual.valid:
-                    label += f" · {format_value(actual.value, actual.unit)}"
-            set_label(card.value, label)
-            card.plot.set_data([(chart, cfg.colors[kind])], now, span, gap)
-            if self.expanded:
-                if metric in ("disk.total", "disk.read", "disk.write", "net.total"):
-                    set_label(card.footer, f"Scale {format_value(scale, 'B/s')}")
-                else:
-                    set_label(card.footer, "0–100%")
+            self.refresh_card(card, scope, kind, selected_device, now, span, archive)
         if self.expanded:
-            self.refresh_table(scope, selected, now, span, archive)
+            self.refresh_table(self.table, scope, selected, now, span, archive)
 
-    def refresh_table(self, scope, device, now, span, archive):
+    def scope_status(self, scope, concise=False):
+        collectors = self.dashboard.collectors
+        cfg = self.dashboard.settings
+        status = collectors.statuses.get(scope)
+        os_label = collectors.systems.get(scope) or next(
+            (t.os_type for t in cfg.targets if t.identifier == scope), "")
+        last = collectors.last.get(scope)
+        last_text = f" · Last sample {strftime('%H:%M:%S', localtime(last))}" if self.expanded and last else ""
+        text = f"{os_label} · {self.dashboard.state(scope)} · Sample {self.dashboard.interval(scope):g} s{last_text}"
+        if status and status.detail:
+            text += f" · {status.detail}"
+        if self.expanded and not concise:
+            cpu_name = next((d.name for d in collectors.devices[scope].values() if d.kind == "cpu-info"), "")
+            if cpu_name:
+                text += f" · {cpu_name}"
+        return text
+
+    def refresh_sections(self, now, span, archive):
+        machines = self.dashboard.monitored()
+        online = sum(self.dashboard.state(machine) == Connection.ONLINE for machine in machines)
+        set_label(self.header, f"{online}/{len(machines)} connected · Individual machine histories")
+        for machine in machines:
+            section = self.sections[machine]
+            set_label(section.title, f"{self.dashboard.name(machine)} · {self.scope_status(machine, concise=True)}")
+            for kind, card in section.cards.items():
+                self.refresh_card(card, machine, kind, TOTAL, now, span, archive, compact=True)
+            if section.table is not None and section.table.isVisible():
+                self.refresh_table(section.table, machine, TOTAL, now, span, archive)
+
+    def refresh_card(self, card, scope, kind, device, now, span, archive, compact=False):
+        spec = resource_series(kind, self.dashboard.settings)
+        plots, scale, gap = self.dashboard.series(scope, kind, tuple(metric for metric, _ in spec),
+                                                  device, span, now, archive)
+        lines = []
+        for metric, color in spec:
+            chart, current = plots[metric]
+            value = display_value(current)
+            if kind in ("ram", "vram") and not compact:
+                key = "ram.used" if kind == "ram" else "gpu.vram_used"
+                extra = self.dashboard.collectors.history.latest(scope, device, key)
+                if extra and extra.valid:
+                    value += f" · {format_value(extra.value, extra.unit)}"
+            if kind == "net":
+                label = card.direction_labels[metric]
+                set_label(label, f"{NETWORK[metric][0]}: {value}")
+                foreground = QColor(color)
+                if card.palette().color(QPalette.ColorRole.Window).lightness() > 150:
+                    foreground = foreground.darker(180)
+                style = f"color: {foreground.name()};"
+                if style != label.styleSheet():
+                    label.setStyleSheet(style)
+            else:
+                set_label(card.value, value)
+            lines.append((chart, color))
+        card.plot.set_data(lines, now, span, gap)
+        rate_plot = kind == "net" or (kind == "disk" and spec[0][0] != "disk.active")
+        scale_text = f"Scale {format_value(scale, 'B/s')}" if rate_plot else "0–100%"
+        set_label(card.footer, scale_text)
+        if card.plot.toolTip() != scale_text:
+            card.plot.setToolTip(scale_text)
+
+    def refresh_table(self, table, machine, device, now, span, archive):
         data = []
         collectors = self.dashboard.collectors
-        machines = self.dashboard.machines() if scope == ALL else [scope]
-        for machine in machines:
-            device_info = collectors.devices.get(machine, {}).get(device)
-            label = self.dashboard.name(machine) + (f" · {device_info.name}" if device_info else "")
-            if scope == ALL:
-                label += f" · {self.dashboard.state(machine)}"
-            for metric, title in METRIC_NAMES.items():
-                archive_key = (machine, device, metric)
-                resource = ("vram" if metric.startswith("gpu.vram") else metric.split(".")[0])
-                current = self.dashboard.observation(machine, resource, device, metric, now)
-                if current is None and archive_key not in self.dashboard.archived:
-                    continue
-                if machine not in self.dashboard.members(scope, resource):
-                    continue
-                rows = self.dashboard.history(archive_key, now - span, archive)
-                values = [item.value for item in rows if item.valid]
-                current_value = display_value(current)
-                stats = [format_value(value, rows[-1].unit) if values else "—"
-                         for value in ((min(values), max(values), sum(values) / len(values)) if values else (None,) * 3)]
-                data.append((title, current_value, *stats, label))
-        if self.table.rowCount() != len(data):
-            self.table.setRowCount(len(data))
+        device_info = collectors.devices.get(machine, {}).get(device)
+        label = self.dashboard.name(machine) + (f" · {device_info.name}" if device_info else "")
+        for metric, title in METRIC_NAMES.items():
+            resource = "vram" if metric.startswith("gpu.vram") else metric.split(".")[0]
+            if not selected_resource(machine, resource, self.dashboard.settings):
+                continue
+            archive_key = (machine, device, metric)
+            current = self.dashboard.observation(machine, resource, device, metric, now)
+            if current is None and (not archive or archive_key not in self.dashboard.archived):
+                continue
+            rows = self.dashboard.history(archive_key, now - span, archive)
+            values = [item.value for item in rows if item.valid]
+            current_value = display_value(current)
+            stats = ([format_value(value, rows[-1].unit) for value in (min(values), max(values), sum(values) / len(values))]
+                     if values else ["—"] * 3)
+            data.append((title, current_value, *stats, label))
+        if table.rowCount() != len(data):
+            table.setRowCount(len(data))
         for row, columns in enumerate(data):
             for column, value in enumerate(columns):
-                item = self.table.item(row, column)
+                item = table.item(row, column)
                 if item is None:
-                    self.table.setItem(row, column, QTableWidgetItem(value))
+                    table.setItem(row, column, QTableWidgetItem(value))
                 elif item.text() != value:
                     item.setText(value)

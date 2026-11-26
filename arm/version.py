@@ -1,2 +1,2 @@
-VERSION = "v0.2.0.0_alpha"
+VERSION = "v0.4.1.1_alpha"
 NAME = "Adaptive Resource Monitor"

@@ -7,6 +7,7 @@ from time import time
 LOCAL = "local"
 ALL = "@all"
 TOTAL = "@total"
+NETWORK = {"net.receive": ("IN", "#65df79"), "net.transmit": ("OUT", "#ff686b")}
 INTERVALS = (0.5, 1, 2, 5, 10)
 RANGES = {30: "30 seconds", 60: "60 seconds", 300: "5 minutes", 900: "15 minutes",
           1800: "30 minutes", 3600: "1 hour", 21600: "6 hours", 86400: "1 day",

@@ -1,15 +1,20 @@
 from pathlib import Path
+from contextlib import ExitStack
 from queue import Queue
 from tempfile import TemporaryDirectory
-from time import sleep, time
+from threading import Event
+from time import monotonic, sleep, time
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import paramiko
+from PySide6.QtCore import QCoreApplication
 
-from arm.collect import Worker, problem
+from arm.collect import Collectors, Worker, problem
 from arm.config import Settings, Target
 from arm.history_db import HistoryDb
-from arm.model import Connection, LOCAL, TOTAL, Sample, Status, readings
+from arm.model import Connection, LOCAL, NETWORK, TOTAL, Sample, Status, readings
 from arm.providers.gpu import WddmGpu
 from arm.providers.ssh import LinuxParser, LinuxSsh, UntrustedHost, update_host_key
 from arm.providers.windows import Cpu, Disk, Memory, Network
@@ -50,6 +55,68 @@ class Providers(unittest.TestCase):
         self.assertEqual(reading(second, "gpu.vram_pct").value, 25)
         reset, _ = parser.parse(FRAME.format(boot=2, busy=400), 12, 12)
         self.assertIsNone(reading(reset, "disk.read").value)
+
+    def test_directional_deltas_skip_reboot_reset_and_interface_replacement(self):
+        def frame(boot, rx, tx, index):
+            lines = FRAME.format(boot=boot, busy=300).splitlines()
+            return "\n".join(f"net\teth0\t1\tup\t10000\t{rx} 0 0 0 0 0 0 0 {tx} 0 0 0 0 0 0 0\t{index}"
+                             if line.startswith("net\teth0\t") else line for line in lines)
+
+        parser = LinuxParser(Target(interval=1))
+        for stamp, counters, expected in (
+            (1, (1, 100, 200, 2), (None, None)),
+            (2, (1, 130, 275, 2), (30, 75)),
+            (3, (1, 20, 280, 2), (None, 5)),
+            (4, (1, 19000, 81000, 5), (None, None)),
+            (5, (1, 19010, 81005, 5), (10, 5)),
+            (6, (2, 40000, 82000, 5), (None, None)),
+        ):
+            sample, _ = parser.parse(frame(*counters), stamp, stamp)
+            self.assertEqual(tuple(reading(sample, metric, "eth0").value for metric in NETWORK), expected)
+
+    def test_windows_directional_deltas_rebaseline_replaced_interface(self):
+        sampler = Network(Settings(local_interval=1, interfaces=["Ethernet"]))
+        samples = [{"Ethernet": SimpleNamespace(bytes_recv=rx, bytes_sent=tx)}
+                   for rx, tx in ((100, 200), (150, 215), (90000, 100000), (90010, 100040))]
+        adapters = [{"Ethernet": (True, 1_000_000, 1_000_000, guid)} for guid in (b"a", b"a", b"b", b"b")]
+        with patch("arm.providers.windows.psutil.net_io_counters", side_effect=samples), \
+                patch("arm.providers.windows.psutil.net_if_stats", return_value={"Ethernet": SimpleNamespace(isup=True)}), \
+                patch("arm.providers.windows.interface_info", side_effect=adapters), \
+                patch("arm.providers.windows.monotonic", side_effect=(1, 2, 3, 4)):
+            for expected in ((None, None), (50, 15), (None, None), (10, 40)):
+                packet = sampler.sample()
+                for device in (TOTAL, "Ethernet"):
+                    self.assertEqual(tuple(reading(packet, metric, device).value for metric in NETWORK), expected)
+
+    def test_collectors_sample_independently_while_another_machine_is_stalled(self):
+        app = QCoreApplication.instance() or QCoreApplication([])
+        gate = Event()
+        with TemporaryDirectory(prefix="arm-ssh-test-") as root, ExitStack() as stack:
+            slow = stack.enter_context(Fixture(gate=gate))
+            fast = stack.enter_context(Fixture())
+            path = Path(root) / "known_hosts"
+            targets = []
+            for server, interval in ((slow, 1), (fast, .5)):
+                targets.append(Target(host="127.0.0.1", port=server.port, username="tester",
+                                      timeout=8, interval=interval))
+                update_host_key(path, f"[127.0.0.1]:{server.port}", server.key)
+            collectors = Collectors(Settings(targets=targets), Secret(), path)
+            try:
+                with patch("arm.collect.LOCAL_PROVIDERS", ()):
+                    collectors.start()
+                deadline = monotonic() + 5
+                while monotonic() < deadline and (fast.samples < 3 or not slow.samples):
+                    app.processEvents()
+                    sleep(.025)
+                app.processEvents()
+                self.assertGreaterEqual(fast.samples, 3)
+                self.assertGreaterEqual(slow.samples, 1)
+                self.assertNotIn(targets[0].identifier, collectors.last)
+                self.assertIn(targets[1].identifier, collectors.last)
+                self.assertEqual([collectors.intervals[t.identifier] for t in targets], [1, .5])
+            finally:
+                collectors.close()
+                gate.set()
 
     def test_loopback_password_verification_persistence_and_changed_key(self):
         with TemporaryDirectory(prefix="arm-ssh-test-") as root, Fixture() as server:
@@ -129,14 +196,19 @@ class Providers(unittest.TestCase):
             stamp = time()
             replies, errors = Queue(), Queue()
             key = (LOCAL, TOTAL, "cpu.util")
+            legacy = (LOCAL, TOTAL, "net.total")
+            directions = [(LOCAL, TOTAL, metric) for metric in NETWORK]
             path = Path(root) / "history.sqlite"
             first = HistoryDb(path, 1, 16, lambda *result: replies.put(result), errors.put)
-            first.record(readings(LOCAL, stamp, TOTAL, {"cpu.util": (31, "%")}))
+            first.record(readings(LOCAL, stamp, TOTAL, {"cpu.util": (31, "%"), "net.total": (800, "B/s")}))
             first.close()
             next_db = HistoryDb(path, 1, 16, lambda *result: replies.put(result), errors.put)
             try:
-                next_db.request(1, [key], stamp - 1)
-                self.assertEqual(replies.get(timeout=5)[1][key][0].value, 31)
+                next_db.request(1, [key, legacy, *directions], stamp - 1)
+                records = replies.get(timeout=5)[1]
+                self.assertEqual(records[key][0].value, 31)
+                self.assertEqual(records[legacy][0].value, 800)
+                self.assertTrue(all(not records[direction] for direction in directions))
                 next_db.send("clear", 2)
                 self.assertEqual(replies.get(timeout=5), (2, {}))
                 next_db.request(3, [key], stamp - 1)

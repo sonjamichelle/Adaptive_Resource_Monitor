@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.1.1_alpha — 2026-11-26
+
+- Removed Aggregate - Peak and migrated saved selections to All Systems.
+- Added an independent Tray icon machine setting, with Local Machine as the default and optional separate icons for individual machines.
+- Preserved six independent resource graphs per monitored machine in All Systems, including network IN and OUT.
+
+## v0.4.0.1_alpha — 2026-11-26
+
+- Added independent machine sections in All Systems.
+- Added independent network IN and OUT traces, readings and color preferences with a shared throughput scale.
+- Fixed immediate persistence of the hover machine and history range across reopen, reconnect and restart.
+
 ## v0.2.0.0_alpha — 2026-11-26
 
 - Added the Design Creations About tab with application and build details, version history, project links and third-party notices.

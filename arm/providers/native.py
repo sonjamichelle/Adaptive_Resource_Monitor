@@ -261,6 +261,6 @@ def interface_info():
         count = w.ULONG.from_address(table.value).value
         rows = (_InterfaceRow * count).from_address(table.value + ct.alignment(_InterfaceRow))
         return {row.alias: (bool(row.flags & 1) and row.type in (6, 71),
-                            row.transmit, row.receive) for row in rows}
+                            row.transmit, row.receive, bytes(row.guid)) for row in rows}
     finally:
         free(table)

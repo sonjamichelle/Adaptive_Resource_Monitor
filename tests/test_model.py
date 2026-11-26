@@ -1,12 +1,13 @@
+import json
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
-from arm.config import ConfigStore, Settings, Target
+from arm.config import ConfigStore, Settings, Target, monitor_choices
 from arm.credentials import CredentialStore
-from arm.graphs import Dashboard, across_series
-from arm.model import (ALL, LOCAL, TOTAL, Availability, Connection, History, Status,
+from arm.graphs import Dashboard, composite_samples
+from arm.model import (ALL, LOCAL, NETWORK, TOTAL, Availability, Connection, History, Status,
                        aggregate, current_reading, graph_scale, rate, readings)
 from arm.providers.gpu import engine_usage, gpu_metrics
 from arm.tray import HoverState, place_popup
@@ -49,22 +50,29 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(next(iter(values.values()))["util"], 75)
         self.assertEqual(next(iter(values.values()))["compute"], 20)
 
-    def test_multi_machine_ignores_disconnect_and_names_peak(self):
+    def test_composite_picks_the_strongest_resource_sample(self):
+        series = {"ram": [(15, 80), (29, None)], "cpu": [(15, 10), (29, 90)]}
+        self.assertEqual(composite_samples(series, 30, 30, 3, 25),
+                         [(15, 80, "ram"), (29, 90, "cpu")])
+
+    def test_network_directions_share_scale_within_each_machine(self):
         target = Target(name="Remote")
-        coll = SimpleNamespace(settings=Settings(targets=[target]), history=History(),
-                               statuses={LOCAL: Status(LOCAL, Connection.ONLINE),
-                                         target.identifier: Status(target.identifier, Connection.ONLINE)},
+        settings = Settings(targets=[target])
+        coll = SimpleNamespace(settings=settings, history=History(),
+                               statuses={m: Status(m, Connection.ONLINE) for m in (LOCAL, target.identifier)},
                                provider_status={}, intervals={})
         view = Dashboard(coll)
-        for m, peak in ((LOCAL, 12), (target.identifier, 100)):
-            coll.history.add(readings(m, 29, TOTAL, {"cpu.util": (peak, "%")}))
-        _, _, _, value, chosen, _ = view.get(ALL, "cpu", "cpu.util", TOTAL, 30, 30, 40)
-        self.assertEqual((value.value, chosen), (100, target.identifier))
-        coll.statuses[target.identifier] = Status(target.identifier, Connection.OFFLINE)
-        _, _, _, value, chosen, _ = view.get(ALL, "cpu", "cpu.util", TOTAL, 30, 30, 40)
-        self.assertEqual((value.value, chosen), (12, LOCAL))
-        self.assertEqual(across_series({"ram": [(29, None)], "cpu": [(29, 90)]}, 30, 30, 3, 25)[0],
-                         (29, 90, "cpu"))
+        for machine, rx, tx in ((LOCAL, 6144, 1024), (target.identifier, 2048, 4096)):
+            coll.history.add(readings(machine, 28, TOTAL, {"net.total": (2**30, "B/s")}))
+            coll.history.add(readings(machine, 29, TOTAL,
+                                      {"net.receive": (rx, "B/s"), "net.transmit": (tx, "B/s")}))
+        for machine, expected in ((LOCAL, (75, 12.5)), (target.identifier, (50, 100))):
+            directions, scale, _ = view.series(machine, "net", tuple(NETWORK), TOTAL, 30, 30)
+            self.assertEqual(tuple(directions[key][0][0][1] for key in NETWORK), expected)
+            self.assertEqual(scale, 4096 if machine == target.identifier else 8192)
+            self.assertTrue(all(directions[key][1].machine == machine for key in NETWORK))
+        settings.net_scale = 16384
+        self.assertEqual(view.series(target.identifier, "net", tuple(NETWORK), TOTAL, 30, 30)[1], 16384)
 
     def test_hover_and_taskbar_edges(self):
         state = HoverState()
@@ -89,9 +97,50 @@ class ModelTests(unittest.TestCase):
             store.save(cfg)
             self.assertEqual(store.load(), cfg)
             cfg.mode = "Application Icon"
+            cfg.hover_range = 300
+            cfg.hover_machine = cfg.targets[0].identifier
+            cfg.network_colors["net.receive"] = "#008801"
             store.save(cfg)
             self.assertEqual(store.load(), cfg)
+            cfg.tray_machine = cfg.targets[0].identifier
+            cfg.separate_tray_icons = True
+            for selection in (ALL, LOCAL, cfg.targets[0].identifier):
+                cfg.hover_machine = selection
+                store.save(cfg)
+                self.assertEqual(store.load(), cfg)
+            cfg.hover_machine = "removed-host"
+            store.save(cfg)
+            self.assertEqual(store.load().hover_machine, "")
             self.assertNotIn('"password":', path.read_text(encoding="utf-8").lower())
+
+    def test_legacy_machine_preferences_migrate(self):
+        source = {
+            "default_machine": "@peak", "hover_machine": "@peak", "hover_range": 300,
+            "tray_mode": "Selected remote", "tray_remote": "remote-1", "mode": "Composite",
+            "persistent": True, "network_colors": {"net.receive": "#008801"},
+            "targets": [{"identifier": "remote-1", "name": "Test host", "credential": "test-reference"}],
+        }
+        with tempfile.TemporaryDirectory(prefix="arm-config-test-") as root:
+            path = Path(root) / "settings.json"
+            path.write_text(json.dumps(source), encoding="utf-8")
+            store = ConfigStore(path)
+            cfg = store.load()
+            self.assertEqual((cfg.default_machine, cfg.hover_machine, cfg.hover_range), (ALL, ALL, 300))
+            self.assertEqual((cfg.tray_machine, cfg.separate_tray_icons, cfg.mode), ("remote-1", False, "Composite"))
+            self.assertEqual(monitor_choices(cfg), {LOCAL, ALL, "remote-1"})
+            self.assertEqual(cfg.targets[0].credential, "test-reference")
+            self.assertEqual(cfg.network_colors["net.receive"], "#008801")
+            self.assertTrue(cfg.persistent)
+            store.save(cfg)
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertTrue({"tray_mode", "tray_remote"}.isdisjoint(saved))
+            self.assertEqual(store.load(), cfg)
+        for legacy_tray, monitor, separate in (("Consolidated", ALL, False), ("Separate", "", True)):
+            cfg = Settings.from_dict({"tray_mode": legacy_tray})
+            self.assertEqual((cfg.tray_machine, cfg.hover_machine, cfg.separate_tray_icons),
+                             (LOCAL, monitor, separate))
+        for invalid_source in (ALL, "@peak", "removed-host", []):
+            self.assertEqual(Settings.from_dict({"tray_machine": invalid_source}).tray_machine, LOCAL)
 
     def test_real_credential_namespace_and_roundtrip(self):
         vault = CredentialStore()

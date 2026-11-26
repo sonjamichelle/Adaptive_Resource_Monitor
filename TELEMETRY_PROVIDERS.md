@@ -32,14 +32,19 @@ VPN and virtual bridge layers from the aggregate by default. All recognized
 interfaces remain available for manual selection. If layers overlap, select
 one layer from each network path. Link utilization is the greater directional
 rate compared with that direction's negotiated speed. Throughput is shown
-in bytes per second. Fixed scales are display references. Automatically
-scaled I/O is normalized against the next power-of-two scale in the plot range.
+in bytes per second. The IN and OUT traces use one fixed or automatic
+scale. The automatic scale considers both series over the displayed history
+interval. The SQLite metric schema already supports separate directions.
+Existing combined-only readings stay in detailed measurements and leave a
+gap in directional plots. Windows GUID and Linux interface-index changes
+invalidate the previous counter baseline. Fixed scales are display
+references. Automatic throughput scales use the next power of two.
 
-Composite mode and the consolidated tray surface the largest normalized
-observation. The consolidated monitor names the machine contributing the
-current maximum and skips unavailable or stale current readings. Amber marks
-a connection that needs attention. A disconnected machine retains its last
-valid values with a stale label.
+All Systems displays individual histories. Each dynamic tray icon reads
+one machine. Its Composite mode highlights the strongest normalized
+resource observation and keeps both network traces visible. Amber marks
+that machine's connection when it needs attention.
+A disconnected machine retains its last valid values with a stale label.
 
 The provider interfaces are documented in
 [DXGI adapter description](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/ns-dxgi-dxgi_adapter_desc1),

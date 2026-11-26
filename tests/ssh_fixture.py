@@ -51,9 +51,10 @@ class Auth(paramiko.ServerInterface):
 
 
 class Fixture:
-    def __init__(self, *, key=None, drop_first=False, public=None):
+    def __init__(self, *, key=None, drop_first=False, public=None, gate=None):
         self.key = key or paramiko.RSAKey.generate(2048)
         self.drop_first, self.public = drop_first, public
+        self.gate = gate
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen()
@@ -115,6 +116,11 @@ class Fixture:
                         if self.drop_first and self.samples == 1:
                             transport.close()
                             break
+                        if self.gate is not None:
+                            while not self.stop.is_set() and not self.gate.wait(.05):
+                                pass
+                            if self.stop.is_set():
+                                break
                         frame = FRAME.format(boot=102, busy=100 + self.samples * 10)
                         channel.sendall(b"@arm-begin\n" + frame.encode() + b"@arm-end\n")
             except (OSError, EOFError, paramiko.SSHException):

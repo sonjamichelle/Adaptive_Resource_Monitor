@@ -19,7 +19,7 @@ class TrayMenu(QMenu):
         self.add_header()
         self.addSeparator()
         open_monitor = self.action(self, "Open Resource Monitor", SP.SP_ComputerIcon,
-                                   lambda: app.open_expanded(app.tray_machine(scope)))
+                                   app.open_expanded)
         self.setDefaultAction(open_monitor)
         self.pin = self.action(self, "Pin Resource Monitor", None, lambda: app.toggle_pin(scope))
         self.pin.setCheckable(True)
@@ -44,7 +44,7 @@ class TrayMenu(QMenu):
             mode_group.addAction(action)
             self.modes[mode] = action
         self.action(self, "Resource History", SP.SP_FileDialogListView,
-                    lambda: app.open_expanded(app.tray_machine(scope), True))
+                    lambda: app.open_expanded(history=True))
 
         self.addSeparator()
         targets = self.submenu("Remote Targets", SP.SP_DriveNetIcon)
@@ -113,7 +113,7 @@ class TrayMenu(QMenu):
             }
             self.remote.menuAction().setVisible(bool(targets))
         choices = {LOCAL: self.local, ALL: self.all, **self.remote_entries}
-        choices[app.tray_machine(self.scope)].setChecked(True)
+        choices[app.monitor_machine()].setChecked(True)
         self.modes[app.settings.mode].setChecked(True)
         self.pin.setChecked(app.popup.pinned and app.hover.anchor == self.scope)
         self.start.setChecked(app.startup_enabled())

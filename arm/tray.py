@@ -73,12 +73,12 @@ class HoverState:
 
 
 class HoverMonitor:
-    def __init__(self, popup, dashboard, icons, monitor_scope):
+    def __init__(self, popup, dashboard, icons):
         self.popup, self.dashboard, self.icons = popup, dashboard, icons
-        self.monitor_scope = monitor_scope
         self.cursor = NativeCursor()
         self.state = HoverState()
         self.anchor = None
+        self.location = None
 
     def tick(self):
         raw, cursor = self.cursor.raw(), QCursor.pos()
@@ -109,7 +109,6 @@ class HoverMonitor:
         screen = QGuiApplication.screenAt(QCursor.pos()) or QGuiApplication.primaryScreen()
         if screen is None:
             return
-        cfg = self.dashboard.settings
         screen_rect = screen.geometry()
         raw, qt = self.cursor.raw(), QCursor.pos()
         if raw is not None and not raw_rect.isEmpty():
@@ -120,11 +119,17 @@ class HoverMonitor:
         else:
             rect = QRect(qt if screen_rect.contains(qt) else screen_rect.center(), QSize(1, 1))
         self.anchor = machine
-        self.popup.set_machine(self.monitor_scope(machine))
-        position = place_popup(screen.availableGeometry(), rect, QSize(cfg.popup_width, cfg.popup_height))
-        self.popup.setGeometry(position)
+        self.location = screen, rect
+        self.reposition()
         self.popup.show()
         self.popup.refresh()
+        self.reposition()
+
+    def reposition(self):
+        if self.location is not None:
+            screen, rect = self.location
+            position = place_popup(screen.availableGeometry(), rect, self.popup.popup_size())
+            self.popup.setGeometry(position)
 
     def pin(self, value, machine=None):
         self.popup.pinned = value
@@ -132,4 +137,4 @@ class HoverMonitor:
             self.popup.pin.setChecked(value)
         self.popup.pin.setText("Unpin" if value else "Pin")
         if value and (not self.popup.isVisible() or machine is not None):
-            self.show(machine or self.popup.selected_machine)
+            self.show(machine or self.anchor or next(iter(self.icons), None))

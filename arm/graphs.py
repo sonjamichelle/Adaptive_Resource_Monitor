@@ -5,13 +5,19 @@ from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-from .model import ALL, Connection, LOCAL, RESOURCES, TOTAL, current_reading, graph_scale, normalized
+from .model import ALL, Connection, LOCAL, NETWORK, RESOURCES, TOTAL, current_reading, graph_scale, normalized
 
 METRICS = {kind: d[2] for kind, d in RESOURCES.items()}
 
 
 def metric_for(kind, settings):
     return settings.disk_mode if kind == "disk" else METRICS[kind]
+
+
+def resource_series(kind, settings):
+    if kind == "net":
+        return tuple(settings.network_colors.items())
+    return ((metric_for(kind, settings), settings.colors[kind]),)
 
 
 def selected_resource(machine, kind, settings):
@@ -47,8 +53,8 @@ def bucket_peaks(points, now, span, columns):
     return result
 
 
-def across_series(series, now, span, gap, columns):
-    """Peak per time bin, with identity attached to the winning observation."""
+def composite_samples(series, now, span, gap, columns):
+    """Pick the strongest resource trace within each time bin of one machine."""
     step = max(span / columns, min(gap, span) / 3)
     size = max(1, int(span / step))
     bins = {}
@@ -108,9 +114,8 @@ class Dashboard:
     def machines(self):
         return [LOCAL] + [target.identifier for target in self.settings.targets]
 
-    def members(self, scope, kind):
-        machines = self.machines() if scope == ALL else [scope]
-        return [machine for machine in machines if selected_resource(machine, kind, self.settings)]
+    def monitored(self):
+        return [LOCAL] + [target.identifier for target in self.settings.targets if target.enabled]
 
     def state(self, machine):
         status = self.collectors.statuses.get(machine)
@@ -138,26 +143,24 @@ class Dashboard:
             candidate = self.collectors.history.last_valid.get(key, candidate)
         return current_reading(candidate, status, self.interval(machine), now)
 
-    def get(self, scope, kind, metric, device, span, now, columns, archive=False):
-        machines = self.members(scope, kind)
-        rows = {machine: self.history((machine, device, metric), now - span, archive)
-                for machine in machines}
-        scale = plot_scale(metric, self.settings, (value for values in rows.values() for value in values))
-        points = {machine: [(item.timestamp, normalized(item, scale)) for item in values]
-                  for machine, values in rows.items()}
-        gap = max((max(2, self.interval(machine) * 3) for machine in machines), default=3)
+    def series(self, machine, kind, metrics, device, span, now, archive=False):
+        """Normalize one machine's resource traces against a shared reference."""
+        enabled = selected_resource(machine, kind, self.settings)
+        histories = {
+            metric: self.history((machine, device, metric), now - span, archive) if enabled else []
+            for metric in metrics
+        }
+        scale = plot_scale(metrics[0], self.settings,
+                           (item for values in histories.values() for item in values))
+        gap = max(2, self.interval(machine) * 3)
         if archive:
             gap = max(gap, span / 1200)
-        actual = {machine: self.observation(machine, kind, device, metric, now) for machine in machines}
-        if scope == ALL:
-            chosen = max((m for m, r in actual.items() if r and r.valid), key=lambda m: actual[m].value,
-                         default=None)
-            peak = across_series(points, now, span, gap, columns)
-            chart = [(stamp, value) for stamp, value, _ in peak]
-        else:
-            chosen = scope
-            chart = points.get(scope, [])
-        return chart, scale, gap, actual.get(chosen), chosen, rows
+        result = {}
+        for metric, values in histories.items():
+            points = [(item.timestamp, normalized(item, scale)) for item in values]
+            current = self.observation(machine, kind, device, metric, now) if enabled else None
+            result[metric] = points, current
+        return result, scale, gap
 
 
 def paint_tray(painter, size, data, settings, period, now, status):
@@ -167,34 +170,41 @@ def paint_tray(painter, size, data, settings, period, now, status):
     rect = QRectF(1, 1, size - 2, size - 3)
     if settings.mode == "Stacked" and data:
         height = rect.height() / len(data)
-        for index, (kind, points, gap) in enumerate(data):
+        for index, (traces, gap) in enumerate(data):
             band = QRectF(rect.x(), rect.y() + height * index, rect.width(), max(1, height - .35))
-            shade = QColor(settings.colors[kind])
+            shade = QColor(traces[0][2])
             shade.setAlpha(63)
             painter.setPen(QPen(shade, .6))
             painter.drawLine(band.bottomLeft(), band.bottomRight())
-            stroke(painter, band, points, now, period, gap, settings.colors[kind], .8)
+            for _, points, color in traces:
+                stroke(painter, band, points, now, period, gap, color, .8)
     elif settings.mode == "Composite" and data:
-        gap = max(gap for _, _, gap in data)
-        combined = across_series({kind: points for kind, points, _ in data}, now, period, gap, size)
+        gap = max(gap for _, gap in data)
+        points = {metric: values for traces, _ in data for metric, values, _ in traces}
+        colors = {metric: color for traces, _ in data for metric, _, color in traces}
+        for metric in NETWORK:
+            if metric in points:
+                stroke(painter, rect, points[metric], now, period, gap, colors[metric], .7)
+        combined = composite_samples(points, now, period, gap, size)
         for left, right in zip(combined, combined[1:]):
             if left[1] is not None and right[1] is not None and right[0] - left[0] <= gap:
                 stroke(painter, rect, [(left[0], left[1]), (right[0], right[1])], now, period, gap,
-                       settings.colors[right[2]], 1.4)
+                       colors[right[2]], 1.4)
         isolated = [point for index, point in enumerate(combined) if point[1] is not None and
                     (index == 0 or combined[index - 1][1] is None or point[0] - combined[index - 1][0] > gap)]
         for stamp, value, kind in isolated:
-            stroke(painter, rect, [(stamp, value)], now, period, gap, settings.colors[kind], 1.4)
+            stroke(painter, rect, [(stamp, value)], now, period, gap, colors[kind], 1.4)
     else:
-        for kind, points, gap in data:
-            stroke(painter, rect, points, now, period, gap, settings.colors[kind])
+        for traces, gap in data:
+            for _, points, color in traces:
+                stroke(painter, rect, points, now, period, gap, color)
     if status:
         painter.setPen(QPen(QColor("#151820"), 1))
         painter.setBrush(QColor("#ffd06c"))
         painter.drawEllipse(QRectF(size - 5.5, .5, 5, 5))
 
 
-def tray_icon(dashboard, scope, now=None):
+def tray_icon(dashboard, machine, now=None):
     settings = dashboard.settings
     now = time() if now is None else now
     period = settings.tray_range
@@ -202,13 +212,11 @@ def tray_icon(dashboard, scope, now=None):
     for kind in RESOURCES:
         if kind not in settings.resources:
             continue
-        chart, _, gap, *_ = dashboard.get(scope, kind, metric_for(kind, settings), TOTAL, period, now, 40)
-        data.append((kind, chart, gap))
-    machines = dashboard.machines() if scope == ALL else [scope]
-    status = any(dashboard.state(machine) != Connection.ONLINE for machine in machines)
-    if scope == LOCAL and dashboard.settings.tray_mode == "Local":
-        status |= any(dashboard.state(machine) in (Connection.RETRYING, Connection.ERROR, Connection.TRUST)
-                      for machine in dashboard.machines() if machine != LOCAL)
+        series = resource_series(kind, settings)
+        plots, _, gap = dashboard.series(machine, kind, tuple(metric for metric, _ in series),
+                                        TOTAL, period, now)
+        data.append(([(metric, plots[metric][0], color) for metric, color in series], gap))
+    status = dashboard.state(machine) != Connection.ONLINE
     icon = QIcon()
     for size in (16, 20, 24, 32, 40, 48):
         pixmap = QPixmap(size, size)

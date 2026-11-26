@@ -234,7 +234,7 @@ def run_installer_wizard(args, result, captures=None):
     return code
 
 
-def validate_packages(release, work, result, upgrade_from=None, captures=None):
+def validate_packages(release, work, result, upgrade_from=None, captures=None, portable_only=False):
     from arm.about import UNINSTALL_KEY
     from arm.branding import BUNDLED_ASSETS, PUBLISHER, SUPPORT_URL, WEBSITE, asset
     from arm.config import ConfigStore, Settings, Target
@@ -263,6 +263,8 @@ def validate_packages(release, work, result, upgrade_from=None, captures=None):
     verify_executable(payload / exe, VERSION)
     result["verified_pe_icons_and_company_metadata"] = True
     run_frozen(payload / exe, work / "portable-profile", result)
+    if portable_only:
+        return
 
     import winreg
     key = UNINSTALL_KEY
@@ -435,7 +437,7 @@ def evaluate_app(work, results, short=False, captures=None):
     from arm.branding import set_windows_identity
     from arm.config import STATIC_TRAY_MODE, ConfigStore, Settings, Target
     from arm.dialogs import ConnectionsDialog, SettingsDialog
-    from arm.model import LOCAL, TOTAL, Connection, RESOURCES
+    from arm.model import ALL, LOCAL, NETWORK, TOTAL, Connection, RESOURCES
     from arm.providers.ssh import update_host_key
     from ssh_fixture import Fixture, SECRET
     from contextlib import ExitStack
@@ -547,7 +549,7 @@ def evaluate_app(work, results, short=False, captures=None):
             prefs.deleteLater()
             connections.deleteLater()
         with ExitStack() as stack:
-            servers = [stack.enter_context(Fixture()) for _ in range(1 if short else 2)]
+            servers = [stack.enter_context(Fixture()) for _ in range(2)]
             targets = []
             for i, server in enumerate(servers, 1):
                 target = Target(name=f"Loopback {i}", host="127.0.0.1", port=server.port,
@@ -562,30 +564,79 @@ def evaluate_app(work, results, short=False, captures=None):
                                          f"{len(server.commands)} commands, {server.samples} frames, "
                                          f"{session.dashboard.state(target.identifier)}") from exc
                 assert "Connected" in menu.remote_entries[target.identifier].text()
-                from arm.graphs import tray_icon
-                with patch("arm.application.tray_icon", wraps=tray_icon) as draw:
-                    menu.remote_entries[target.identifier].trigger()
-                    assert draw.call_args.args[1] == target.identifier
+                menu.remote_entries[target.identifier].trigger()
                 assert session.popup.selected_machine == target.identifier
+                assert session.scopes() == [LOCAL]
                 menu.local.trigger()
                 session.popup.hide()
                 if i == 1 and not short:
                     measure("one_loopback_ssh")
             if not short:
                 measure("two_loopback_ssh")
-            session.apply(replace(session.settings, tray_mode="Separate", persistent=True))
+            from arm.graphs import tray_icon
+            primary, other = (target.identifier for target in targets)
+            prefs = SettingsDialog(session)
+            tray_machine = prefs.controls["tray_machine"].__self__
+            assert [tray_machine.itemData(i) for i in range(tray_machine.count())] == [LOCAL, primary, other]
+            tray_machine.setCurrentIndex(tray_machine.findData(primary))
+            prefs.save()
+            prefs.deleteLater()
+            assert session.scopes() == [primary] and session.popup.selected_machine == LOCAL
+            menu = session.menus[primary]
+            for select, expected in ((menu.all, ALL), (menu.remote_entries[other], other), (menu.local, LOCAL)):
+                select.trigger()
+                with patch("arm.application.tray_icon", wraps=tray_icon) as draw:
+                    session.render()
+                    assert [call.args[1] for call in draw.call_args_list] == [primary]
+                assert session.popup.selected_machine == session.expanded.selected_machine == expected
+                assert select.isChecked()
+                if expected == ALL:
+                    for view in (session.popup, session.expanded):
+                        assert set(view.sections) == {LOCAL, primary, other}
+                        assert all(set(section.cards) == set(RESOURCES) for section in view.sections.values())
+            menu.all.trigger()
+            history = session.collectors.history
+            wait_for(lambda: all(
+                (reading := history.latest(machine, TOTAL, direction)) and reading.valid and reading.value > 0
+                for machine in (primary, other) for direction in NETWORK
+            ))
+            session.popup.refresh()
+            for machine in (primary, other):
+                card = session.popup.sections[machine].cards["net"]
+                for direction, (points, _) in zip(NETWORK, card.plot.data[0]):
+                    latest = history.latest(machine, TOTAL, direction)
+                    assert any(stamp == latest.timestamp and value > 0 for stamp, value in points if value is not None)
+                    assert card.direction_labels[direction].text().startswith(NETWORK[direction][0] + ":")
+            results["independent_network_directions"] = True
+            session.popup.interval.setCurrentIndex(session.popup.interval.findData(300))
+            session.popup.hide()
+            menu.defaultAction().trigger()
+            assert session.expanded.selected_machine == ALL
+            session.expanded.close()
+            session.hover.show(primary)
+            assert session.popup.selected_machine == ALL and session.popup.span == 300
+            saved = ConfigStore(root / "settings.json").load()
+            assert (saved.hover_machine, saved.hover_range, saved.tray_machine) == (ALL, 300, primary)
+            session.popup.hide()
+            session.apply(replace(session.settings, separate_tray_icons=True, persistent=True))
             assert set(session.icons) == {LOCAL, *(target.identifier for target in targets)}
+            with patch("arm.application.tray_icon", wraps=tray_icon) as draw:
+                session.render()
+                assert {call.args[1] for call in draw.call_args_list} == {LOCAL, primary, other}
+                assert draw.call_count == 3
+            results["independent_tray_and_monitor"] = "Local plus two SSH targets, six graphs each, three independent icon sources"
             results["loopback_frame_counts"] = [server.samples for server in servers]
             for target in targets:
                 session.collectors.disconnect(target.identifier)
             assert all(session.dashboard.state(t.identifier) == Connection.OFFLINE for t in targets)
-            session.apply(replace(session.settings, tray_mode="Local", persistent=False))
+            assert session.popup.selected_machine == ALL
+            session.apply(replace(session.settings, separate_tray_icons=False, persistent=False))
             if not short:
                 measure("disconnected_remotes")
-            session.apply(replace(session.settings, tray_mode="Consolidated"))
-            assert len(session.icons) == 1
+            assert set(session.icons) == {primary}
             for target in list(session.settings.targets):
                 session.remove_target(target)
+            assert set(session.icons) == {LOCAL} and session.popup.selected_machine == ALL
         exit_action = next(action for action in next(iter(session.menus.values())).actions()
                            if action.text().startswith("Exit Adaptive Resource Monitor"))
         QTimer.singleShot(0, exit_action.trigger)
@@ -597,13 +648,32 @@ def evaluate_app(work, results, short=False, captures=None):
     assert not session.collectors.workers
     data = (root / "arm.log").read_text(encoding="utf-8")
     assert "Adaptive Resource Monitor stopped" in data and " ERROR " not in data, data
+    restart_root = work / "restart"
+    store = ConfigStore(restart_root / "settings.json")
+    stored_targets = [replace(target, enabled=False, credential="test-reference") for target in saved.targets]
+    store.save(replace(saved, targets=stored_targets))
+    for legacy in (False, True):
+        if legacy:
+            source = json.loads(store.path.read_text(encoding="utf-8"))
+            source.update(hover_machine="@peak", default_machine="@peak")
+            store.path.write_text(json.dumps(source), encoding="utf-8")
+        reopened = Application(app, restart_root)
+        try:
+            assert reopened.scopes() == [primary]
+            assert reopened.popup.selected_machine == reopened.expanded.selected_machine == ALL
+            assert reopened.popup.span == 300 and not reopened.popup.pinned
+            assert reopened.settings.targets == stored_targets
+        finally:
+            reopened.close()
+        app.processEvents()
+    results["restored_monitor_and_tray"] = "New and legacy settings restored All Systems at five minutes with a separate tray source"
 
 
 def child(args):
     result = {"desktop": verify_desktop(args.desktop)}
     try:
         if args.package:
-            validate_packages(args.package, args.work, result, args.upgrade_from, args.captures)
+            validate_packages(args.package, args.work, result, args.upgrade_from, args.captures, args.portable_only)
         else:
             evaluate_app(args.work, result, args.short, args.captures)
     except Exception:
@@ -629,6 +699,8 @@ def parent(args):
         command = [sys.executable, str(Path(__file__).resolve()), "--desktop", desktop, "--work", str(work)]
         if args.package:
             command.extend(("--package", str(args.package.resolve())))
+        if args.portable_only:
+            command.append("--portable-only")
         if args.upgrade_from:
             command.extend(("--upgrade-from", str(args.upgrade_from.resolve())))
         if args.captures:
@@ -651,6 +723,7 @@ if __name__ == "__main__":
     parser.add_argument("--desktop")
     parser.add_argument("--work", type=Path)
     parser.add_argument("--package", type=Path)
+    parser.add_argument("--portable-only", action="store_true")
     parser.add_argument("--upgrade-from", type=Path)
     parser.add_argument("--captures", type=Path)
     parser.add_argument("--short", action="store_true")

@@ -6,12 +6,13 @@ from pathlib import Path
 from dataclasses import asdict, dataclass, field, fields
 from uuid import uuid4
 
-from .model import ALL, DISK_MODES, INTERVALS, LOCAL, RANGES, RESOURCES
+from .model import ALL, DISK_MODES, INTERVALS, LOCAL, NETWORK, RANGES, RESOURCES
 
 LOG = logging.getLogger(__name__)
 APP_DIR = "Adaptive Resource Monitor"
 STATIC_TRAY_MODE = "Application Icon"
 TRAY_MODES = ("Overlay", "Stacked", "Composite", STATIC_TRAY_MODE)
+LEGACY_PEAK = "@peak"
 
 
 def data_path():
@@ -57,7 +58,7 @@ class Target:
     @classmethod
     def from_dict(cls, source):
         cfg = cls(**existing_values(cls, source))
-        if not isinstance(cfg.identifier, str) or not cfg.identifier or cfg.identifier in (LOCAL, ALL):
+        if not isinstance(cfg.identifier, str) or not cfg.identifier or cfg.identifier in (LOCAL, ALL, LEGACY_PEAK):
             cfg.identifier = str(uuid4())
         for key in ("name", "host", "username", "key_file", "credential"):
             if not isinstance(getattr(cfg, key), str):
@@ -79,10 +80,11 @@ class Settings:
     theme: str = "System"
     default_machine: str = LOCAL
     mode: str = "Overlay"
-    tray_mode: str = "Local"
-    tray_remote: str = ""
+    tray_machine: str = LOCAL
+    separate_tray_icons: bool = False
     resources: list[str] = field(default_factory=lambda: list(RESOURCES))
     colors: dict[str, str] = field(default_factory=lambda: {r: info[1] for r, info in RESOURCES.items()})
+    network_colors: dict[str, str] = field(default_factory=lambda: {key: value[1] for key, value in NETWORK.items()})
     background: str = "#171a22"
     transparent: bool = False
     tray_refresh: float = 1
@@ -96,6 +98,7 @@ class Settings:
     popup_height: int = 330
     popup_columns: int = 2
     hover_range: int = 60
+    hover_machine: str = ""
     hover_resources: list[str] = field(default_factory=lambda: list(RESOURCES))
     local_interval: float = 1
     remote_interval: float = 2
@@ -123,14 +126,13 @@ class Settings:
         for key, choices, fallback in (
             ("theme", ("System", "Light", "Dark"), "System"),
             ("mode", TRAY_MODES, "Overlay"),
-            ("tray_mode", ("Local", "Selected remote", "Separate", "Consolidated"), "Local"),
             ("disk_mode", DISK_MODES, "disk.total"),
             ("log_level", ("DEBUG", "INFO", "WARNING", "ERROR"), "INFO"),
         ):
             value = getattr(cfg, key)
             if not isinstance(value, str) or value not in choices:
                 setattr(cfg, key, fallback)
-        for key in ("default_machine", "tray_remote", "history_file"):
+        for key in ("default_machine", "history_file", "hover_machine"):
             if not isinstance(getattr(cfg, key), str):
                 setattr(cfg, key, getattr(cls(), key))
         for key in ("resources", "hover_resources", "gpus", "disks", "interfaces"):
@@ -146,10 +148,40 @@ class Settings:
             setattr(cfg, key, number(getattr(cfg, key), 0, 0, 2**50))
         colors = cfg.colors if isinstance(cfg.colors, dict) else {}
         cfg.colors = {r: valid_color(colors.get(r), info[1]) for r, info in RESOURCES.items()}
+        network_colors = cfg.network_colors if isinstance(cfg.network_colors, dict) else {}
+        cfg.network_colors = {key: valid_color(network_colors.get(key), value[1])
+                              for key, value in NETWORK.items()}
         cfg.background = valid_color(cfg.background, "#171a22")
         cfg.targets = [Target.from_dict(item) for item in cfg.targets if isinstance(item, dict)] if isinstance(cfg.targets, list) else []
         cfg.targets = list({target.identifier: target for target in cfg.targets}.values())
+        legacy_tray = source.get("tray_mode")
+        if "tray_machine" not in source and legacy_tray == "Selected remote":
+            cfg.tray_machine = source.get("tray_remote")
+        if not isinstance(cfg.tray_machine, str) or cfg.tray_machine not in machine_ids(cfg):
+            cfg.tray_machine = LOCAL
+        if "separate_tray_icons" not in source:
+            cfg.separate_tray_icons = legacy_tray == "Separate"
+        elif not isinstance(cfg.separate_tray_icons, bool):
+            cfg.separate_tray_icons = False
+        if cfg.default_machine == LEGACY_PEAK:
+            cfg.default_machine = ALL
+        if cfg.hover_machine == LEGACY_PEAK:
+            cfg.hover_machine = ALL
+        if cfg.hover_machine not in monitor_choices(cfg):
+            cfg.hover_machine = ""
+        # The old consolidated setting selected the all-machine view implicitly
+        # when neither a saved monitor nor an explicit non-local default existed.
+        if legacy_tray == "Consolidated" and not cfg.hover_machine and cfg.default_machine == LOCAL:
+            cfg.hover_machine = ALL
         return cfg
+
+
+def machine_ids(settings):
+    return {LOCAL, *(target.identifier for target in settings.targets)}
+
+
+def monitor_choices(settings):
+    return machine_ids(settings) | {ALL}
 
 
 def valid_color(value, default):

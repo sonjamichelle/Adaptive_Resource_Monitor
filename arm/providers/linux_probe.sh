@@ -50,11 +50,12 @@ sample() {
         dev=${dev//[[:space:]]/}
         path=/sys/class/net/$dev
         [[ -d $path ]] || continue
-        speed= state= physical=0
+        speed= state= index= physical=0
         [[ ! -e $path/device ]] || physical=1
         [[ ! -r $path/operstate ]] || read -r state < "$path/operstate"
+        [[ ! -r $path/ifindex ]] || read -r index < "$path/ifindex"
         { [[ ! -r $path/speed ]] || read -r speed < "$path/speed"; } 2>/dev/null
-        printf 'net\t%s\t%s\t%s\t%s\t%s\n' "$dev" "$physical" "$state" "$speed" "$rest"
+        printf 'net\t%s\t%s\t%s\t%s\t%s\t%s\n' "$dev" "$physical" "$state" "$speed" "$rest" "$index"
     done < /proc/net/dev
     for path in /sys/class/drm/card[0-9]*; do
         [[ ${path##*/} =~ ^card[0-9]+$ && -r $path/device/vendor ]] || continue

@@ -11,14 +11,14 @@ from time import time
 import winreg
 
 import psutil
-from PySide6.QtCore import QLockFile, QObject, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QLockFile, QObject, QSignalBlocker, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QSystemTrayIcon
 
 from .about import AboutPage
 from .branding import DARK, LIGHT, PUBLISHER, WEBSITE, application_icon, set_windows_identity
 from .collect import Collectors
-from .config import STATIC_TRAY_MODE, ConfigStore, Target, data_path
+from .config import STATIC_TRAY_MODE, ConfigStore, Target, data_path, machine_ids, monitor_choices
 from .credentials import CredentialStore
 from .dialogs import ConnectionsDialog, SettingsDialog, TargetDialog
 from .graphs import Dashboard, tray_icon
@@ -81,13 +81,16 @@ class Application(QObject):
         self.collectors.changed.connect(self.sync_status)
         self.icons = {}
         self.menus = {}
-        self.monitor_machines = {}
         self.about_page = AboutPage(self.root)
         self.expanded = Monitor(self.dashboard, True, self.request_archive, self.open_expanded,
                                 self.set_pin, self.about_page)
         self.expanded.setWindowIcon(self.brand_icon)
         self.popup = Monitor(self.dashboard, False, self.request_archive, self.open_expanded, self.set_pin)
-        self.hover = HoverMonitor(self.popup, self.dashboard, self.icons, self.tray_machine)
+        self.hover = HoverMonitor(self.popup, self.dashboard, self.icons)
+        for view in (self.popup, self.expanded):
+            view.machine.currentIndexChanged.connect(partial(self.monitor_selected, view))
+        self.popup.interval.currentIndexChanged.connect(
+            lambda _: self.remember_monitor(span=self.popup.span))
         self.tray_timer = QTimer(self)
         self.tray_timer.timeout.connect(self.render)
         self.hover_timer = QTimer(self)
@@ -124,6 +127,7 @@ class Application(QObject):
         self.sync_icons()
         self.popup.sync()
         self.expanded.sync()
+        self.restore_monitor()
         self.render()
 
     def configure_history(self):
@@ -148,32 +152,28 @@ class Application(QObject):
         self.retired_storage = [db for db in self.retired_storage if db.thread.is_alive()]
 
     def apply(self, settings):
+        if settings.hover_machine and settings.hover_machine not in monitor_choices(settings):
+            settings = replace(settings, hover_machine="")
+        if settings.tray_machine not in machine_ids(settings):
+            settings = replace(settings, tray_machine=LOCAL)
         self.store.save(settings)
-        old_default = self.settings.default_machine
-        old_hover = self.settings.hover_range
         self.settings = settings
         self.configure()
-        if old_default != settings.default_machine:
-            self.popup.set_machine(settings.default_machine)
-            self.expanded.set_machine(settings.default_machine)
-        if old_hover != settings.hover_range:
-            self.popup.interval.setCurrentIndex(self.popup.interval.findData(settings.hover_range))
         self.expanded.archive()
         LOG.info("Settings updated")
 
     def sync_status(self):
         self.popup.sync()
         self.expanded.sync()
+        self.hover.reposition()
         self.sync_menus()
         self.refresh_views()
 
     def scopes(self):
         cfg = self.settings
-        if cfg.tray_mode == "Consolidated":
-            return [ALL]
-        if cfg.tray_mode == "Selected remote":
-            return [cfg.tray_remote] if any(t.identifier == cfg.tray_remote for t in cfg.targets) else [LOCAL]
-        return [LOCAL] + ([t.identifier for t in cfg.targets if t.tray] if cfg.tray_mode == "Separate" else [])
+        if not cfg.separate_tray_icons:
+            return [cfg.tray_machine]
+        return list(dict.fromkeys((cfg.tray_machine, LOCAL, *(t.identifier for t in cfg.targets if t.tray))))
 
     def sync_icons(self):
         scopes = self.scopes()
@@ -184,7 +184,6 @@ class Application(QObject):
                 icon.setContextMenu(None)
                 icon.deleteLater()
                 self.menus.pop(machine).deleteLater()
-                self.monitor_machines.pop(machine, None)
         for machine in scopes:
             if machine in self.icons:
                 continue
@@ -203,17 +202,45 @@ class Application(QObject):
             if not menu.isVisible():
                 menu.refresh()
 
-    def tray_machine(self, scope):
-        choices = {ALL, *self.dashboard.machines()}
-        chosen = self.monitor_machines.get(scope, scope)
-        return chosen if chosen in choices else scope if scope in choices else LOCAL
+    def monitor_machine(self):
+        choices = monitor_choices(self.settings)
+        return next((choice for choice in (self.settings.hover_machine, self.settings.default_machine)
+                     if choice in choices), LOCAL)
+
+    def restore_monitor(self):
+        machine = self.monitor_machine()
+        self.popup.set_machine(machine)
+        self.expanded.set_machine(machine)
+        with QSignalBlocker(self.popup.interval):
+            self.popup.interval.setCurrentIndex(self.popup.interval.findData(self.settings.hover_range))
+        self.hover.reposition()
+        self.sync_menus()
+
+    def monitor_selected(self, view, _index):
+        self.remember_monitor(machine=view.selected_machine)
+
+    def remember_monitor(self, machine=None, span=None):
+        changes = {}
+        if machine in monitor_choices(self.settings) and machine != self.settings.hover_machine:
+            changes["hover_machine"] = machine
+        if span is not None and span != self.settings.hover_range:
+            changes["hover_range"] = span
+        if not changes:
+            return
+        updated = replace(self.settings, **changes)
+        try:
+            self.store.save(updated)
+        except OSError as exc:
+            self.restore_monitor()
+            QMessageBox.warning(self.popup, "Monitor selection", str(exc))
+            return
+        # Display preferences need no collector restart or archive reset.
+        self.settings = self.collectors.settings = updated
+        self.restore_monitor()
 
     def select_machine(self, machine, scope):
-        self.monitor_machines[scope] = machine
-        self.expanded.set_machine(machine)
+        self.remember_monitor(machine=machine)
         self.hover.show(scope)
-        self.render()
-        self.sync_menus()
 
     def set_tray_display(self, mode):
         if mode == self.settings.mode:
@@ -228,7 +255,7 @@ class Application(QObject):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
             self.toggle_pin(machine)
         elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self.open_expanded(self.tray_machine(machine))
+            self.open_expanded()
 
     def toggle_pin(self, machine):
         self.hover.pin(not self.popup.pinned or self.hover.anchor != machine, machine)
@@ -241,14 +268,12 @@ class Application(QObject):
     def render(self):
         now = time()
         for machine, icon in self.icons.items():
-            scope = self.tray_machine(machine)
-            members = self.dashboard.machines() if scope == ALL else (scope,)
-            initializing = all(self.dashboard.state(member) == Connection.CONNECTING
-                               and member not in self.collectors.last for member in members)
+            initializing = (self.dashboard.state(machine) == Connection.CONNECTING
+                            and machine not in self.collectors.last)
             if self.settings.mode == STATIC_TRAY_MODE or initializing:
                 image = self.brand_icon
             else:
-                image = tray_icon(self.dashboard, scope, now)
+                image = tray_icon(self.dashboard, machine, now)
             if icon.icon().cacheKey() != image.cacheKey():
                 icon.setIcon(image)
 
@@ -258,8 +283,9 @@ class Application(QObject):
                 view.refresh()
 
     def open_expanded(self, machine=None, history=False):
-        if machine in self.dashboard.machines() or machine == ALL:
-            self.expanded.set_machine(machine)
+        if machine not in monitor_choices(self.settings):
+            machine = self.monitor_machine()
+        self.expanded.set_machine(machine)
         if history:
             index = self.expanded.interval.findData(3600)
             self.expanded.interval.setCurrentIndex(max(0, index))
@@ -271,12 +297,12 @@ class Application(QObject):
         if not self.storage:
             return
         kind, device = selection
-        signature = (scope, span, selection)
+        machines = self.dashboard.monitored() if scope == ALL else [scope]
+        signature = (scope, span, selection, tuple(machines))
         if signature == self.archive_signature:
             return
         self.archive_signature = signature
         self.archive_token += 1
-        machines = self.dashboard.machines() if scope == ALL else [scope]
         keys = {(machine, device, metric) for machine in machines for metric in METRIC_NAMES}
         if kind:
             keys.update((machine, TOTAL, metric) for machine in machines for metric in METRIC_NAMES)
@@ -286,7 +312,7 @@ class Application(QObject):
         if token != self.archive_token:
             return
         self.dashboard.archived = results
-        if self.expanded.isVisible():
+        if self.expanded.monitor_visible:
             self.expanded.refresh()
 
     def report_history_error(self, message):
@@ -504,7 +530,7 @@ def main():
     try:
         controller = Application(app, root)
         if not controller.settings.minimized:
-            controller.open_expanded(controller.settings.default_machine)
+            controller.open_expanded()
         return app.exec()
     finally:
         if controller is not None:

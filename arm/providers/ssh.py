@@ -328,10 +328,10 @@ class LinuxParser:
                 selected("disk", key, key, disk_metrics(read, write, reads, writes,
                                                         min(100, active / 10) if active is not None else None),
                          not self.target.disks or key in self.target.disks)
-        for key, physical, state, speed, row in (row for row in sections["net"] if len(row) == 5):
+        for key, physical, state, speed, row, *identity in (row for row in sections["net"] if len(row) in (5, 6)):
             v = integers(row, 16)
             if v:
-                receive, transmit = counters("net:" + key, (v[0], v[8]))
+                receive, transmit = counters(("net", key, state, *identity), (v[0], v[8]))
                 link = num(speed)
                 up = state == "up" if state in ("up", "down", "lowerlayerdown", "dormant") else None
                 link = link if link and link > 0 and up else None
