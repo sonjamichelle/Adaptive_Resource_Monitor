@@ -6,7 +6,6 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '15', artifactNumToKeepStr: '6'))
         copyArtifactPermission('Adaptive-Resource-Monitor/Publish-Release')
         timeout(time: 35, unit: 'MINUTES')
-        timestamps()
     }
     triggers { pollSCM('H/5 * * * *') }
     environment {
