@@ -9,10 +9,50 @@ The main window and tray share the same Settings page, including pending edits.
 View Changelog restores a minimized monitor, opens the changelog and clears
 both success banners while leaving the update receipt available.
 
-The production update runs directly from v0.8.2.3_beta. That updater invokes
-Setup in unattended mode, so the production user reviews and accepts the
-exact signed-release license separately before authorizing installation in
-the existing About controls.
+The production update runs directly from v0.8.2.3_beta through its
+existing About controls and unattended Setup. The original author
+explicitly authorized her production upgrade under her authority as
+licensor. The signed package still carries the authoritative license,
+and interactive Setup presents the agreement.
+
+Jenkins Build and Archive #19 passed the 39 regressions, native Windows
+checks and package checks for commit
+`9b799751cd315e36f0c305e7f0c1cc5ba3dfc7b5`. A disposable Setup displayed
+the full agreement. Declining preserved the previous files, accepting
+advanced Setup, and update mode preserved the fixture profile and history.
+Publication #13 released the pinned artifacts. All seven anonymous
+downloads matched the archive and the Ed25519 signature verified. The
+published license matched its signed SHA-256. Gitea returned 404 for the
+superseded v0.8.3.3_beta release.
+[Build #19](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/19/)
+[Publication #13](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/13/)
+[Public release](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.4.4_beta)
+
+| Windows x64 package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Installer | 60,115,361 | `836d638e4db89ddae86c58e6d0bbee67c73454cb2f33c1f64ac23529038e7a16` |
+| Portable ZIP | 74,567,873 | `2895cd94ac5f076df264a518ca3b8d84114e06f640f8cbb1b9c7db412b4f8e1a` |
+
+Transaction `47ab8563c7d14220b923231c0bc82cf8` recorded the verified
+download, orderly shutdown, visible installer progress, automatic
+restart in the same Windows session, and successful completion. The
+previous process exited with code 0 before Setup opened its log. All
+302 installed files matched the archive. The launcher exited and one
+ARM instance remained.
+
+All five machines reconnected and reported uptime, with separate
+network IN and OUT readings. The settings file, saved machine order
+and selection, pinned SSH host keys, startup registration and
+credential access were preserved. Startup update checks and the
+four-hour interval stayed enabled. The installed About tab reported
+the latest verified release. The Settings tab and the complete
+offline license viewer opened. View Changelog cleared the success
+banner and left the completion files byte-for-byte unchanged.
+
+The disposable Setup check removed 278,013,139 bytes. Anonymous
+verification removed another 134,686,177 bytes. Native and production
+evidence is retained under `evidence/v0.8.4.4_beta-native/` and
+`evidence/v0.8.4.4_beta-production/`.
 
 ## v0.8.3.3_beta — Software license and monitor refinements
 
