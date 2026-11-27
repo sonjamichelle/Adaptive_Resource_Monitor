@@ -30,7 +30,7 @@
 
 Adaptive Resource Monitor (ARM) is a lightweight real-time monitor for Windows. Its live tray graph keeps recent activity visible while the app collects in the background. Hover for details, or open the expanded monitor to inspect measurements for the computers you choose. Each machine has its own resource history. Remote Linux hosts use an ordinary SSH connection and keep their credentials in Windows Credential Manager. You can choose the resources, colors, intervals, tray visualization and optional history recording. Application updates are cryptographically verified before installation.
 
-[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yaml) · [Get Support](SUPPORT.md) · [Browse Open Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues?state=open)
+[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F02-feature-request.yaml) · [Get Support](SUPPORT.md) · [Browse Open Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues?state=open)
 
 ## Download
 
@@ -255,7 +255,7 @@ Adaptive Resource Monitor is **source-available** under the **Design Creations A
 
 ## Contributing and support
 
-[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yaml) ·
+[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F02-feature-request.yaml) ·
 [Get Support](SUPPORT.md) · [View Development Roadmap](ROADMAP.md) ·
 [Browse Open Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues?state=open) ·
 [Request Derivative Distribution Permission](CONTRIBUTING.md#derivative-distribution-permission)
