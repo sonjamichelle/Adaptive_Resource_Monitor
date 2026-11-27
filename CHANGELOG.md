@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.2.3_beta — 2026-11-26
+
+- Show the installed version at the upper right of the hover monitor above its controls.
+- Restore the last size and position of the main monitor and its reusable dialogs. Keep restored windows within the current work area where their content fits.
+
 ## v0.6.2.2_beta — 2026-11-26
 
 - Promote Adaptive Resource Monitor to Beta after verifying the production self-update, restoration of local and remote monitoring, and signed same-number Beta discovery.

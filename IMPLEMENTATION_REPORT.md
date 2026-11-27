@@ -1,5 +1,26 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.6.2.3_beta — Hover monitor version and window placement
+
+Production v0.6.2.2_beta was built from `5e8ea74be3fd94156bdc7a0810cfcc8eaac739f0`.
+The earlier hover label and expanded-window geometry corrections were
+committed afterward in `d40be62478eb45f572a1555ce22491e4a2cc5eb8`. The
+published Beta and its installed executable therefore lacked both changes.
+
+This Bug-Fix increments only the last numerical counter. The hover monitor
+reads VERSION.md through the shared version module and renders it above the
+selectors and Pin and Details controls. A shared geometry handler preserves
+the existing main-window state file and remembers Settings, Remote Targets,
+Remote Machine and Application Details placement. The About layout remains
+the same as the previous release.
+
+The 34 regressions passed. Native Windows checks exercised individual and
+All Systems, pinned and unpinned, and a popup anchored to a separate machine
+icon. Both themes were checked at effective 100% and 150% scaling using
+Qt's per-process scale factor on private Windows desktops. A native geometry
+check confirmed exact positioning on reopening and recovery of an off-screen
+About window on the current display.
+
 ## v0.6.2.2_beta — Beta promotion
 
 Alpha production acceptance and the signed same-number compatibility

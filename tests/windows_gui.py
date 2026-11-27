@@ -511,6 +511,46 @@ def verify_update_notices(session, wait_for, results, captures):
     results["verified_shared_update_notices"] = "Verified, ready, rejected, deferred and duplicate notification states"
 
 
+def verify_hover_version(session, remote, results, captures):
+    from arm.model import ALL, LOCAL
+    from arm.version import VERSION
+
+    original = session.settings
+    hover = session.popup
+    scale = round(hover.devicePixelRatioF() * 100)
+    modes = (
+        ("individual-unpinned", LOCAL, LOCAL, False),
+        ("individual-pinned", remote, remote, True),
+        ("all-systems-unpinned", ALL, LOCAL, False),
+        ("all-systems-pinned", ALL, remote, True),
+    )
+    try:
+        for theme in ("Light", "Dark"):
+            session.apply(replace(original, theme=theme))
+            for name, selection, anchor, pinned in modes:
+                session.hover.pin(False)
+                session.select_machine(selection, anchor)
+                session.hover.pin(pinned, anchor)
+                session.qt.processEvents()
+                label = hover.version_label
+                rect = label.geometry()
+                assert hover.isVisible() and hover.pinned == pinned
+                assert hover.selected_machine == selection and session.hover.anchor == anchor
+                assert label.isVisible() and label.text() == VERSION
+                assert rect.bottom() < hover.machine.geometry().top()
+                assert rect.right() == hover.width() - hover.layout().contentsMargins().right() - 1
+                assert label.fontMetrics().horizontalAdvance(VERSION) <= rect.width()
+                assert hover.rect().contains(rect)
+                if captures and theme == ("Light" if scale > 100 else "Dark"):
+                    capture_native_window(int(hover.winId()), captures / f"hover-{name}-{scale}.png")
+    finally:
+        session.hover.pin(False)
+        hover.hide()
+        session.apply(original)
+    results["hover_version"] = {"version": VERSION, "scale_percent": scale,
+                                "themes": ["Light", "Dark"], "views": [row[0] for row in modes]}
+
+
 def evaluate_app(work, results, short=False, captures=None):
     import psutil
     from PySide6.QtCore import QEventLoop, QTimer
@@ -730,6 +770,7 @@ def evaluate_app(work, results, short=False, captures=None):
             session.popup.hide()
             session.apply(replace(session.settings, separate_tray_icons=True, persistent=True))
             assert set(session.icons) == {LOCAL, *(target.identifier for target in targets)}
+            verify_hover_version(session, primary, results, captures)
             with patch("arm.application.tray_icon", wraps=tray_icon) as draw:
                 session.render()
                 assert {call.args[1] for call in draw.call_args_list} == {LOCAL, primary, other}

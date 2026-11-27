@@ -21,6 +21,7 @@ from .branding import (
 )
 from .version import NAME, VERSION
 from .update_ui import UpdatePanel
+from .window_geometry import WindowGeometry
 
 LOG = logging.getLogger(__name__)
 DOCS = {
@@ -232,4 +233,5 @@ class AboutPage(QWidget):
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         dialog.resize(620, dialog.sizeHint().height())
+        dialog.window_geometry = WindowGeometry(dialog, self.data_root / "application-details-window.bin")
         dialog.exec()

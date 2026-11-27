@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 from .config import TRAY_MODES
 from .model import DISK_MODES, LOCAL, NETWORK, RANGES, RESOURCES, Connection
 from .views import fill, interval_choices, machine_choices, plain
+from .window_geometry import WindowGeometry
 
 
 def checkbox(value):
@@ -122,6 +123,7 @@ class SettingsDialog(QDialog):
         self.timer.timeout.connect(self.update_diagnostics)
         self.timer.start()
         self.update_diagnostics()
+        self.window_geometry = WindowGeometry(self, app.root / "settings-window.bin")
 
     def section(self, title):
         page = QWidget()
@@ -331,6 +333,7 @@ class TargetDialog(QDialog):
         self.os.currentIndexChanged.connect(update)
         self.auth.currentIndexChanged.connect(update)
         update()
+        self.window_geometry = WindowGeometry(self, app.root / "remote-machine-window.bin")
 
     def save(self):
         host, name, user = (field.text().strip() for field in (self.host, self.name, self.username))
@@ -398,6 +401,7 @@ class ConnectionsDialog(QDialog):
         app.collectors.changed.connect(self.sync)
         app.collectors.test_finished.connect(self.test_finished)
         self.sync()
+        self.window_geometry = WindowGeometry(self, app.root / "remote-targets-window.bin")
 
     def selected(self):
         row = self.table.currentRow()
