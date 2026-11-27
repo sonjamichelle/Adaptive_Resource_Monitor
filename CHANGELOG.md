@@ -1,6 +1,16 @@
 # Changelog
 
+## v0.8.4.4_beta — 2026-11-26
+
+- Bundle DC-ANCSA v1.0 in the Windows installer and portable ZIP. Interactive Setup shows the agreement, and About opens the complete license offline.
+- Show uptime for the local Windows machine and Linux SSH targets.
+- Drag a machine card from its header or graphs. Use the hover monitor's Pin/Unpin button to change pinning.
+- Open the shared Settings page from the main window between Resource Monitor and About, or from the tray menu.
+- Open the changelog even when the main window is minimized. Opening it clears the success banner in both monitoring views and preserves the update completion receipt.
+
 ## v0.8.3.3_beta — 2026-11-26
+
+Internal candidate superseded by v0.8.4.4_beta.
 
 - Bundle the Design Creations Attribution-NonCommercial-ShareAlike License v1.0 and show it offline from About.
 - Dismiss the update success banner after View Changelog opens the changelog.

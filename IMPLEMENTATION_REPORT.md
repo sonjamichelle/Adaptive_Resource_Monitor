@@ -1,5 +1,19 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.8.4.4_beta — Settings, changelog and licensed release
+
+The Minor and Bug-Fix counters each advance once from v0.8.3.3_beta.
+This release includes the offline DC-ANCSA v1.0 viewer and Setup agreement,
+local and remote uptime, full machine card sorting, and button-only pinning.
+The main window and tray share the same Settings page, including pending edits.
+View Changelog restores a minimized monitor, opens the changelog and clears
+both success banners while leaving the update receipt available.
+
+The production update runs directly from v0.8.2.3_beta. That updater invokes
+Setup in unattended mode, so the production user reviews and accepts the
+exact signed-release license separately before authorizing installation in
+the existing About controls.
+
 ## v0.8.3.3_beta — Software license and monitor refinements
 
 This Minor milestone bundles the supplied DC-ANCSA v1.0 text byte for byte,
@@ -36,8 +50,8 @@ environment.
 Build and Archive #17 built and signed commit
 `8079bf0ca626c7643e5cf3e928651f9c8e63c96a`. The Windows x64 installer,
 portable package, Ed25519 signature, exact bundled license and signed
-build identity verified. The Minor artifacts are staged locally and in
-Jenkins. Publication and installation await authorization.
+build identity verified. This internal candidate was superseded by
+v0.8.4.4_beta.
 [Build #17](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/17/)
 
 | Windows x64 package | Bytes | SHA-256 |

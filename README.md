@@ -8,9 +8,10 @@ the icon's context menu. Windows may initially place the icon
 in the taskbar overflow. Move it into the visible notification area for
 continuous access.
 
-Open the Settings tab in the main window or choose Settings from the tray
-menu to switch between Overlay, Stacked and Composite, choose devices,
-set sampling and graph options, or enable SQLite history. Use Manage Remote Targets
+Open **Settings** between **Resource Monitor** and **About**, or choose
+**Settings** from the tray menu to open the same page. Use it to switch
+between Overlay, Stacked and Composite, choose devices, set sampling and graph
+options, or enable SQLite history. Use Manage Remote Targets
 to add a Linux machine. A confirmed SSH key and working authentication are
 required. The default configuration monitors only the local machine and keeps
 history in memory.
@@ -50,7 +51,10 @@ reliability.
 
 The application version is defined in [VERSION.md](VERSION.md). Open **About →
 Check for Updates** to check the public ARM Releases page. Downloading and
-installing are separate actions. Under **Settings → General**, enable
+installing are separate actions. Review and accept the
+[software license](LICENSE.md) before approving the direct update from
+v0.8.2.3_beta. After the update, **View Changelog** opens the release notes and
+clears the success banner. Under **Settings → General**, enable
 **Check for updates at startup** or use **Check for updates periodically**
 to choose Off, every 4 hours, every 12 hours, daily, or weekly.
 Both Windows x64 distributions use signed update metadata. See
