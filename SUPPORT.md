@@ -1,5 +1,7 @@
 # Adaptive Resource Monitor support
 
+[ARM Wiki](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki) · [Troubleshooting](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Support-and-Troubleshooting) · [Reporting Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Reporting-Issues)
+
 Anyone can browse the public [issue tracker](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues). Sign in to Gitea to open an issue or comment. Search for the affected feature, error text and version before posting. If an existing issue matches, add relevant reproduction details there.
 
 - [Bug Report](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F01-bug-report.yaml)

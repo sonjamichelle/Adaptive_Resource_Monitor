@@ -22,10 +22,10 @@
 </p>
 
 <p align="center">
-  <a href="#download">Download</a> · <a href="#quick-start">Quick Start</a> ·
-  <a href="#monitor-a-remote-linux-machine">Remote Linux</a> ·
-  <a href="#features">Features</a> · <a href="#application-updates">Updates</a> ·
-  <a href="#troubleshooting">Troubleshooting</a> · <a href="#development">Development</a>
+  <a href="#download">Download</a> · <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Quick-Start">Quick Start</a> ·
+  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/User-Manual">User Manual</a> · <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki">Wiki</a> ·
+  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Reporting-Issues">Report Issue</a> ·
+  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Development-Roadmap">Development Roadmap</a> · <a href="LICENSE.md">License</a>
 </p>
 
 Adaptive Resource Monitor (ARM) is a lightweight real-time monitor for Windows. Its live tray graph keeps recent activity visible while the app collects in the background. Hover for details, or open the expanded monitor to inspect measurements for the computers you choose. Each machine has its own resource history. Remote Linux hosts use an ordinary SSH connection and keep their credentials in Windows Credential Manager. You can choose the resources, colors, intervals, tray visualization and optional history recording. Application updates are cryptographically verified before installation.

@@ -36,7 +36,7 @@ If the README change fails, the verified release stays available. Resolve the
 documentation error, then retry authorized publication with the same pinned
 build. The job verifies the existing attachments before refreshing the README.
 A documentation-only update takes the checkout and version-validation path in
-Build and Archive. It skips package creation, signing and archival.
+Build and Archive. It skips package creation, signing and archival. Review the [Wiki maintenance checklist](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Wiki-Maintenance) after publication.
 
 Before publishing a channel promotion, verify discovery and eligibility
 with the already-shipped updater. The v0.6.2.1_alpha updater requires an

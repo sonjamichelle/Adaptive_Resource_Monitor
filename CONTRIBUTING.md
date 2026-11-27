@@ -1,5 +1,7 @@
 # Contributing to Adaptive Resource Monitor
 
+[Contribution guide on the ARM Wiki](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/How-to-Contribute) · [Development roadmap](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Development-Roadmap)
+
 Search [open and closed issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues) before opening a report. Use the [issue chooser](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new/choose) to pick the appropriate form. Include the ARM version, distribution, expected and actual behavior, and a minimal reproduction. Follow the [diagnostic privacy guidance](SUPPORT.md#share-diagnostics-safely).
 
 To propose a patch, discuss the intended scope in an issue first. Base the changes on the current default branch. Describe the problem, the change and the validation performed, and reference the issue as `Refs #123`. Submit the patch directly to the original project through the [Design Creations contact form](https://www.designcreations.us/contact/index.php) or coordinate a submission with a maintainer. Please only contribute material that you have the right to submit on the terms in [LICENSE.md](LICENSE.md). Reviewers use the [issue lifecycle](ISSUE_MANAGEMENT.md).
