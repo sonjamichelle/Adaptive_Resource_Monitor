@@ -82,7 +82,7 @@ class MachineDropdown(QPushButton):
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.setMinimumWidth(145)
         self.setStyleSheet("""
-            QPushButton { text-align: left; padding-left: 8px; padding-right: 20px; }
+            QPushButton { text-align: left; padding: 3px 22px 3px 8px; min-height: 17px; }
             QPushButton::menu-indicator { subcontrol-position: center right; right: 5px; }
         """)
         self.checklist = MachineMenu(dashboard, toggle, self)
@@ -98,6 +98,9 @@ class MachineDropdown(QPushButton):
             label = "All Systems"
         else:
             label = f"{len(names)} Systems Selected"
+        metrics = self.fontMetrics()
+        label = metrics.elidedText(label, Qt.TextElideMode.ElideRight, 165)
+        self.setMinimumWidth(max(145, metrics.horizontalAdvance(label) + 34))
         self.setText(label)
         self.setToolTip("\n".join(names))
         self.checklist.sync()

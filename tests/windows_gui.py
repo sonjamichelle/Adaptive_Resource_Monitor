@@ -639,6 +639,7 @@ def verify_machine_display(session, wait_for, results, captures):
         assert hover.single.isVisible() == (len(wanted) == 1)
         assert hover.simultaneous.isVisible() == (len(wanted) > 1)
         assert hover.machine.text() == label
+        assert hover.machine.width() >= hover.machine.fontMetrics().horizontalAdvance(label) + 24
         if name == "rain":
             observed = history.latest(phantom, TOTAL, "ram.util")
             assert observed is not None

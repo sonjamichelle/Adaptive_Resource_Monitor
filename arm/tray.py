@@ -128,6 +128,7 @@ class HoverMonitor:
         if self.location is not None and not self.popup.drag.active:
             screen, rect = self.location
             area = screen.availableGeometry()
+            self.popup.layout().activate()
             position = place_popup(area, rect, self.popup.popup_size())
             menu = self.popup.machine.checklist
             if menu.isVisible():
