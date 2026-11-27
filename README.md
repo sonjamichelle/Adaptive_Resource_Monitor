@@ -206,7 +206,16 @@ Open **About → Check for Updates** for a manual check. ARM also offers startup
 
 Ed25519 authenticates the signed release information, including package filenames, versions, sizes and SHA-256 hashes. SHA-256 checks the downloaded bytes against that information. Windows Authenticode is a separate mechanism for verifying executable publishers. [Security and verification](SECURITY.md)
 
-<img src="docs/screenshots/about-and-application-update.png" width="860" alt="About tab and Application Update controls showing the verified current release and its installed version">
+<img src="docs/screenshots/about-and-application-update.png" width="860" alt="Production About tab showing Donationware, the Donate button and verified ARM v0.8.7.4 Beta update status">
+
+<details>
+<summary>v0.8.7.4_beta release verification</summary>
+
+Publication #17 used signed Jenkins build #32 from commit `7234f828d74cf4407e620ccbce541885b6a6a8a8`. Each of the seven anonymous downloads on Gitea and GitHub matched the pinned archive. The Ed25519 signature and both Windows x64 package hashes verified. [Gitea release](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.7.4_beta) · [GitHub release](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/releases/tag/v0.8.7.4_beta)
+
+The installed v0.8.6.4_beta updater verified the download, closed ARM, installed the signed update and restarted it as v0.8.7.4_beta. Production acceptance confirmed one running instance, live readings from five systems, and unchanged settings, machine selection, machine order, credential entries and SSH host keys. The installed About tab showed Donationware and the Donate button. The button's exact PayPal destination was verified from the installed code.
+
+</details>
 
 <details>
 <summary>Update availability and installation progress</summary>
@@ -266,6 +275,8 @@ ARM is Donationware. If you find the application useful, a voluntary donation he
 Donations confer no additional rights, preferential support, development priority, promised features, expedited fixes or deadlines. Commercial use and public distribution of derivatives require written permission under [DC-ANCSA v1.0](LICENSE.md). PayPal handles donations directly.
 
 [Donate with PayPal](https://www.paypal.com/donate/?hosted_button_id=SWTCLV72MYG3U)
+
+Starting with v0.8.7.4_beta, **About → Donate** opens the same PayPal page in your default browser.
 
 ## Contributing and support
 
