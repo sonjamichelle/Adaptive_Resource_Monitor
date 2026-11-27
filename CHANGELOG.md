@@ -1,6 +1,13 @@
 # Changelog
 
+## v0.8.6.4_beta — 2026-11-26
+
+- Place View License immediately beside Application Details in About. The Software license row displays DC-ANCSA v1.0 as text. View License still opens the complete terms offline.
+- Include Report Issue in About and the tray, and Copy Application Information in Application Details. [#1](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/1)
+
 ## v0.8.5.4_beta — 2026-11-26
+
+The Report Issue revision is included in v0.8.6.4_beta.
 
 - Add a Report Issue button in About and a matching tray action below Check for Updates. Both open the public issue index in the default browser. [#1](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/1)
 - Add Copy Application Information to Application Details for an optional, sanitized clipboard summary.

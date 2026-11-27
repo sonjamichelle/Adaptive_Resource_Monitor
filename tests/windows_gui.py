@@ -434,6 +434,10 @@ def verify_branding(session, results, captures=None):
             dialog.reject()
     QTimer.singleShot(0, inspect_details)
     view = next(button for button in session.about_page.findChildren(QPushButton) if button.text() == "Application Details")
+    license_button = session.about_page.view_license
+    assert license_button.y() == view.y() and license_button.height() == view.height()
+    assert view.geometry().right() < license_button.x() < session.about_page.report_issue.x()
+    results["about_license_button_row"] = True
     view.click()
     assert "Installation type" in details and "Source checkout" in details and VERSION in details
     info = dict(line.split(": ", 1) for line in copied[0].splitlines())

@@ -9,6 +9,7 @@
 import json
 import logging
 import platform
+import re
 import struct
 import sys
 import winreg
@@ -136,19 +137,18 @@ class AboutPage(QWidget):
         self.version = QLabel(VERSION)
         details.addRow("Installed version", self.version)
         details.addRow("Release classification", QLabel(release_classification()))
-        license_row = QHBoxLayout()
-        self.view_license = QPushButton("View License")
-        self.view_license.clicked.connect(self.show_license)
         bundled = document(LICENSE_FILE).is_file()
-        license_row.addWidget(QLabel(LICENSE_LABEL if bundled else "License file unavailable"))
-        self.view_license.setEnabled(bundled)
-        license_row.addWidget(self.view_license)
-        license_row.addStretch()
-        details.addRow("Software license", license_row)
+        license_label = QLabel(LICENSE_LABEL if bundled else "License file unavailable",
+                               textFormat=Qt.TextFormat.PlainText)
+        details.addRow("Software license", license_label)
         view = QPushButton("Application Details")
         view.clicked.connect(self.show_details)
+        self.view_license = QPushButton("View License")
+        self.view_license.setEnabled(bundled)
+        self.view_license.clicked.connect(self.show_license)
         buttons = QHBoxLayout()
         buttons.addWidget(view)
+        buttons.addWidget(self.view_license)
         self.report_issue = QPushButton(self.style().standardIcon(ISSUE_ICON), "Report Issue")
         self.report_issue.clicked.connect(open_issue_tracker)
         buttons.addWidget(self.report_issue)
@@ -210,7 +210,14 @@ class AboutPage(QWidget):
         path = document(name)
         self.document_group.setTitle(self.documents[name])
         try:
-            self.browser.setMarkdown(path.read_text(encoding="utf-8"))
+            markdown = path.read_text(encoding="utf-8")
+            if name == "README.md":
+                # The public README includes HTML layout and images for Gitea.
+                # Keep its Markdown prose and tables readable in Qt's offline viewer.
+                markdown = re.sub(r"(?ms)^<(div|p|table)\b.*?</\1>[ \t]*\n", "", markdown)
+                markdown = re.sub(r"(?m)^(?:</?details>|<summary>.*</summary>|<img\b[^>\n]*>|<!--.*-->)[ \t]*\n",
+                                  "", markdown)
+            self.browser.setMarkdown(markdown)
         except (OSError, UnicodeError) as exc:
             LOG.warning("Unable to read About document %s: %s", name, exc)
             self.browser.setPlainText(f"Unable to open {name}.")
