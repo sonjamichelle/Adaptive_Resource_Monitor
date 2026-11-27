@@ -1,7 +1,7 @@
 # Adaptive Resource Monitor (ARM)
 ## Cross-Platform Development Roadmap
 
-**Roadmap revision:** 1.1  
+**Roadmap revision:** 1.2  
 **Date:** November 26, 2026  
 **Original developer:** Sonja M Thomas  
 **Copyright:** 2010-2026 SLT Design Creations, LLC  
@@ -15,7 +15,7 @@ Expand ARM from its accepted Windows-first Beta foundation into a family of nati
 
 The primary next milestone is a native Linux desktop application with a small Windows monitoring agent service. Android is a planned companion platform. macOS is a planned native desktop platform. iOS and iPadOS are conditional feasibility targets, not commitments.
 
-A lightweight, read-only service availability and uptime monitor is also planned for local and remote systems, independently of the desktop platform expansion.
+A lightweight, read-only service availability and uptime monitor is also planned for local and remote systems, independently of the desktop platform expansion. Dedicated Raspberry Pi or Arduino-class hardware displays and read-only operating system update availability notifications are also planned.
 
 This is a planning document, not authorization to implement, install, deploy, publish or change existing infrastructure. No release dates or future numeric versions are assigned until work is approved and scoped.
 
@@ -37,6 +37,8 @@ Existing test infrastructure includes the Windows workstation, Rain and Phantom 
 | macOS | Native desktop / menu bar | Planned, capability-dependent | SSH | Agent | Planned |
 | Android | Native mobile companion | Limited, optional | Via gateway; direct SSH optional later | Via gateway; direct agent optional later | Planned |
 | iOS / iPadOS | Native mobile companion | Limited, optional | Via gateway | Via gateway | Conditional |
+| Raspberry Pi | Dedicated always-on display client | Optional, capability-dependent | Via gateway; direct SSH optional | Via gateway; direct agent optional | Planned |
+| Arduino-class network-capable hardware | Embedded display companion | Not required | Via gateway | Via gateway | Feasibility-dependent |
 
 Windows Server 2022 is the initial server validation target; Server 2019 and 2025 are proposed compatibility targets, subject to native testing and supported OS/runtime combinations. Server Core must be tested separately from Desktop Experience. Linux x86-64 and macOS Apple silicon are initial targets; Linux ARM64, Intel macOS and Windows ARM64 are conditional on demand, available hardware and dependency support.
 
@@ -207,9 +209,75 @@ Allow independent service check intervals (default proposal: 30 seconds) and con
 
 Validate actual service uptime against native operating system evidence and verify configured Apache, Jenkins and Gitea health checks where authorized. Use disposable services or controlled fixtures for restart and failure tests; do not stop production services to demonstrate detection. Verify host reboot handling, service restart detection, endpoint failure while the service is running, authentication-required endpoints, TLS failures, disconnected machines, monitoring gaps, settings persistence and optional outage history. Measure added CPU, memory and network overhead. Preserve all accepted resource monitoring behavior and existing infrastructure.
 
-## 12. Packaging, versioning and CI/CD
+## 12. Phase 8: Dedicated hardware monitoring display
 
-Retain the existing Jenkins controller at https://phantom.zapto.org:8080/jenkins/ and Gitea repository. Use existing native Windows and Linux build agents where suitable; add native macOS capacity and Android toolchains only when authorized. iOS builds require a suitable Mac/Xcode environment. Do not use WSL or virtual machines as substitutes for native production acceptance.
+### Purpose and scope
+
+Provide a small, separate, always-on physical display that allows users to visually track selected systems at a glance without opening the desktop application or using space on their primary computer monitor. Target Raspberry Pi and evaluate network-capable Arduino-class microcontrollers as a compact, low-power alternative. The device is a read-only ARM display client, not a remote administration controller.
+
+### Hardware and implementation options
+
+| Option | Intended use | Implementation direction |
+|---|---|---|
+| Raspberry Pi | Rich dashboard on a dedicated HDMI, DSI or supported touchscreen display | Lightweight native Linux kiosk/display application; reuse shared graph and telemetry logic where practical |
+| Arduino-class network-capable board | Compact desk or rack status display using a supported TFT, LCD or OLED | Embedded firmware using a bounded snapshot/history protocol; evaluate memory, display resolution, networking and TLS capabilities |
+
+Start with a Raspberry Pi prototype capable of displaying multiple independent machine histories. Evaluate Arduino-compatible network-capable hardware, including ESP32-class boards, separately. Do not assume a basic Arduino board can render the full desktop dashboard or handle secure networking without additional hardware. Select boards, display sizes, interfaces and firmware only after feasibility testing. A non-touch display must remain usable without a keyboard or mouse; optional buttons or touchscreen controls may provide navigation.
+
+### Display and user experience
+
+- Show selected machines by name, individual resource utilization and history graphs for CPU, GPU, RAM, VRAM, disk I/O and network, subject to display capacity. Preserve green network IN and red network OUT with a common scale.
+- Provide compact status indicators for connected, disconnected, stale and unsupported readings; show system uptime, optional service status and System Updates Available notifications when supported.
+- Support a single-machine view, selected-machine dashboard and all-machine overview. On smaller displays, use configurable pages or rotation rather than combining unrelated systems into one graph.
+- Preserve machine selection, ordering, display orientation, brightness and refresh preferences where supported. Offer configurable page dwell times, readable text, dark/light presentation where practical and optional dimming or blanking schedules.
+- Automatically start the display client after device boot and recover after power loss or network interruption without user intervention. Show last successful sample time and visibly mark stale data; never display a disconnected machine as healthy solely because cached data exists.
+
+### Connectivity, security and updates
+
+Prefer the optional ARM gateway and its authenticated read-only protocol so resource collection continues independently of the display. Raspberry Pi direct SSH or agent monitoring may be evaluated as an optional standalone mode. Embedded devices should receive bounded, compact telemetry snapshots or downsampled histories rather than storing server login passwords or running separate polling sessions for every machine.
+
+Use per-device revocable credentials, verified TLS and a restricted LAN or VPN connection. Do not require public network exposure. If candidate microcontroller hardware cannot securely validate certificates, protect credentials and support maintainable firmware, select more capable hardware rather than disabling verification. Provide explicit enrollment, reconnection backoff, bounded buffers and signed software or firmware updates appropriate to the platform. No automatic flashing or changes to monitored hosts.
+
+### Acceptance
+
+Demonstrate a real Raspberry Pi connected to a separate physical display, showing independent live readings from multiple authorized systems. Validate readable graphs and status indicators at the intended viewing distance, boot-to-dashboard behavior, saved preferences, network interruption/recovery, stale data, extended unattended operation and measured power, memory and network overhead. Evaluate Arduino-class hardware on an actual display and verify secure transport and sufficient resources before committing to a supported firmware release. The embedded option may offer fewer graphs or shorter histories if limitations are documented. Neither platform is required for existing desktop monitoring.
+
+## 13. Phase 9: System Updates Available notifications
+
+### Purpose and scope
+
+Add optional per-machine reporting of operating system update availability as reported by the monitored operating system's own update mechanism. ARM is an observer only. The monitored system and its existing update tools remain responsible for checking for updates, downloading packages, installing updates, restarting services and rebooting when necessary. ARM must not initiate any of these actions.
+
+This feature is independent of ARM's existing signed application update mechanism. Label notifications **System Updates Available** and always identify the affected machine, so users cannot confuse an OS update with an ARM software update.
+
+### Platform collection
+
+| Target | Proposed read-only source |
+|---|---|
+| Local Windows | Supported Windows Update interfaces or locally maintained update status/cache; respect Windows Update and enterprise management policies |
+| Remote Linux | Existing SSH provider; query locally available package-manager update status or cached metadata using distribution-supported read-only operations |
+| Remote Windows / Windows Server | Planned Windows agent; report OS-provided update status under existing Windows Update, WSUS or enterprise policy where supported |
+| macOS | Supported local OS update status interfaces, when available without triggering a scan or installation |
+| Gateway, mobile and dedicated display clients | Consume the same per-machine update status provided by the collecting host or agent |
+
+Validate the exact supported read-only query for each operating system and package manager. Do not refresh package indexes, trigger Windows Update scans, contact upstream update repositories on a target's behalf, bypass enterprise policy or elevate privileges automatically. When a reliable cached or OS-reported status is unavailable, report unknown or unsupported rather than substituting an active update check. Do not infer missing updates from OS version strings or online release lists.
+
+### Status model and presentation
+
+- Track each machine independently, with update availability, update count where reliably reported, optional security update count, optional reboot-required status, source, last OS-reported check time (if available) and ARM observation timestamp.
+- Distinguish updates available, no updates reported, unknown, unsupported, stale and disconnected states. A zero update count is valid only when the OS source positively reports it; missing or outdated metadata must not be interpreted as up to date.
+- Add a compact **System Updates Available** notice to the corresponding machine card in the hover monitor and expanded Resource Monitor. Include the count when available and make additional reported details accessible without obscuring the six resource graphs.
+- Provide an optional per-machine notification and recovery/clear state when the host subsequently reports no pending updates. Deduplicate repeated notifications, allow user-configured preferences and keep the status visible even if a transient notification is dismissed.
+- Keep the feature separate from resource sampling, machine visibility and ARM application update preferences. Use a configurable low-frequency polling interval, bounded timeouts and backoff; hidden machines may continue to collect update status when enabled.
+- Display only reported information. No Install, Download, Update Now, Reboot or remote remediation controls. Users manage updates using the monitored system's normal tools.
+
+### Acceptance
+
+Verify actual OS-reported update availability against native system evidence on local Windows and authorized Linux targets; extend to Windows Server and macOS as their providers become available. Use controlled fixtures for available, none, unknown, stale, security update and reboot-required states. Verify per-machine identity, notification deduplication, preferences, persistence, disconnect/reconnect and that OS status changes clear or revise notices correctly. Confirm no package refresh, update scan, installation, reboot, privilege escalation or remote system change is initiated by ARM. Verify that the existing ARM application updater is unaffected and measure additional monitoring overhead.
+
+## 14. Packaging, versioning and CI/CD
+
+Retain the existing Jenkins controller at https://phantom.zapto.org:8080/jenkins/ and Gitea repository. Use existing native Windows and Linux build agents where suitable; add native macOS capacity and Android toolchains only when authorized. iOS builds require a suitable Mac/Xcode environment. Dedicated display builds require the appropriate Raspberry Pi architecture and, where approved, embedded firmware toolchains and real-device validation. Do not use WSL or virtual machines as substitutes for native production acceptance.
 
 Maintain independent platform build stages and artifacts. Use the authoritative desktop version convention `vMAJOR.FEATURE.MINOR.BUGFIX_TAG` with cumulative independent counters. New platform components may require their own versions and maturity classifications; document compatibility with the shared protocol and decide the exact component version policy before first release. A Windows Beta does not automatically make Linux, macOS or mobile releases Beta.
 
@@ -217,7 +285,7 @@ Build automatically; publish only explicitly authorized, pinned Jenkins artifact
 
 Preserve attribution and the authoritative LICENSE.md across all components. Audit third-party dependencies, runtime redistribution obligations, store terms and custom source-available license compatibility before publication. Keep signing secrets and enrollment credentials out of public source, artifacts and logs.
 
-## 13. Cross-platform acceptance and performance
+## 15. Cross-platform acceptance and performance
 
 - Verify independent resource histories and machine identity; no cross-machine aggregation.
 - Verify persistent selections, drag-and-drop ordering, window geometry and applicable platform preferences after restart, crash and upgrade.
@@ -229,7 +297,7 @@ Preserve attribution and the authoritative LICENSE.md across all components. Aud
 - Preserve production data and settings. Use disposable isolated instances for fault injection; do not install on real targets or publish without authorization.
 - Record hardware, OS version, test duration, actual screenshots, protocol conformance, package signatures and unresolved limitations in the implementation report.
 
-## 14. Milestones and dependencies
+## 16. Milestones and dependencies
 
 | Milestone | Deliverable | Release gate |
 |---|---|---|
@@ -242,14 +310,16 @@ Preserve attribution and the authoritative LICENSE.md across all components. Aud
 | M6 | Android companion | Real-device tests and signed distribution |
 | M7 | iOS/iPadOS feasibility and optional preview | Apple toolchain, policy, licensing and real-device feasibility |
 | M8 | Lightweight service status and uptime monitoring | Read-only Linux/Windows checks, accurate uptime, independent endpoint health and measured overhead |
+| M9 | Dedicated Raspberry Pi display and Arduino-class feasibility | Physical display, authenticated telemetry, unattended recovery and real hardware validation |
+| M10 | System Updates Available reporting | Accurate per-host OS-reported status, notifications, stale handling and proof of read-only operation |
 
-M1 and M2 may proceed in parallel after M0. M2 is required for full Linux-to-Windows acceptance. macOS can proceed independently once M0/M2 interfaces are stable. Mobile clients depend on the gateway/API contract, not on completion of macOS. iOS remains optional. M8 can begin independently on the existing Windows client using its SSH provider and extend to Windows agent targets after M2; it does not depend on mobile or macOS delivery.
+M1 and M2 may proceed in parallel after M0. M2 is required for full Linux-to-Windows acceptance. macOS can proceed independently once M0/M2 interfaces are stable. Mobile clients depend on the gateway/API contract, not on completion of macOS. iOS remains optional. M8 can begin independently on the existing Windows client using its SSH provider and extend to Windows agent targets after M2; it does not depend on mobile or macOS delivery. M9 can begin with a Raspberry Pi prototype once the telemetry contract is stable; gateway-backed display clients depend on M5, while direct Raspberry Pi monitoring is optional. Arduino-class delivery remains conditional on secure hardware feasibility. M10 can begin independently in the existing Windows client and SSH provider, with additional platform integrations following their respective milestones.
 
-## 15. Explicit non-goals
+## 17. Explicit non-goals
 
-ARM remains a read-only resource and service availability monitor, not Adaptive Maintenance, a remote desktop system, an arbitrary remote shell, a process manager, a cloud surveillance service or a centralized administration suite. No cross-machine aggregate graphs, forced cloud accounts, mandatory agents on SSH-accessible Linux systems, automatic public exposure, or unapproved deployment. Do not create artificial release versions solely to demonstrate progress.
+ARM remains a read-only resource, service availability and OS update status monitor, not Adaptive Maintenance, a remote desktop system, an arbitrary remote shell, a process manager, a cloud surveillance service or a centralized administration suite. No cross-machine aggregate graphs, forced cloud accounts, mandatory agents on SSH-accessible Linux systems, automatic public exposure, or unapproved deployment. ARM must never initiate operating system update scans, package index refreshes, OS update downloads, installations or reboots. Do not create artificial release versions solely to demonstrate progress.
 
-## 16. Reference documentation
+## 18. Reference documentation
 
 These are implementation reference starting points; verify current platform support and policy at the time of implementation.
 
@@ -261,6 +331,9 @@ These are implementation reference starting points; verify current platform supp
 - Apple background tasks: https://developer.apple.com/documentation/uikit/using-background-tasks-to-update-your-app
 - Android background work: https://developer.android.com/develop/background-work
 - Android Keystore: https://developer.android.com/privacy-and-security/keystore
+- Raspberry Pi documentation: https://www.raspberrypi.com/documentation/
+- Arduino documentation: https://docs.arduino.cc/
+- Windows Update Agent API reference: https://learn.microsoft.com/en-us/windows/win32/wua_sdk/portal-client
 
 ---
 
