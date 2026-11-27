@@ -5,12 +5,12 @@
 </div>
 
 <!-- arm-public-header:start -->
-<!-- arm-public-version: v0.8.6.4_beta -->
-<p align="center"><strong>v0.8.6.4_beta · Beta</strong> · Windows x64 · DC-ANCSA v1.0</p>
-<p align="center"><a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta">Latest release</a> · <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/releases">Download on GitHub</a> · <a href="LICENSE.md">Read the license</a></p>
+<!-- arm-public-version: v0.8.7.4_beta -->
+<p align="center"><strong>v0.8.7.4_beta · Beta</strong> · Windows x64 · DC-ANCSA v1.0</p>
+<p align="center"><a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.7.4_beta">Latest release</a> · <a href="#download">Download</a> · <a href="LICENSE.md">Read the license</a></p>
 <p align="center">
-  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta"><img src="https://img.shields.io/badge/release-v0.8.6.4__beta-176B6D" alt="Latest release v0.8.6.4_beta"></a>
-  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta"><img src="https://img.shields.io/badge/development-Beta-A35C15" alt="Beta development status"></a>
+  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.7.4_beta"><img src="https://img.shields.io/badge/release-v0.8.7.4__beta-176B6D" alt="Latest release v0.8.7.4_beta"></a>
+  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.7.4_beta"><img src="https://img.shields.io/badge/development-Beta-A35C15" alt="Beta development status"></a>
 </p>
 <!-- arm-public-header:end -->
 
@@ -41,17 +41,17 @@ Adaptive Resource Monitor (ARM) is a lightweight real-time monitor for Windows. 
 Use [GitHub releases](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/releases) to download mirrored packages. The links below point to the authoritative signed Gitea release used by the current ARM updater.
 
 <!-- arm-public-downloads:start -->
-**v0.8.6.4_beta · Beta · Windows x64**
+**v0.8.7.4_beta · Beta · Windows x64**
 
 | Download | Size | Use it for |
 | --- | ---: | --- |
-| [Windows installer](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.6.4_beta/AdaptiveResourceMonitor-v0.8.6.4_beta-windows-x64-setup.exe) | 57.3 MiB | A per-user installation with Start menu access, optional startup and managed upgrades |
-| [Portable ZIP](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.6.4_beta/AdaptiveResourceMonitor-v0.8.6.4_beta-windows-x64-portable.zip) | 71.1 MiB | Running ARM from an extracted folder with portable updates |
+| [Windows installer](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.7.4_beta/AdaptiveResourceMonitor-v0.8.7.4_beta-windows-x64-setup.exe) | 57.3 MiB | A per-user installation with Start menu access, optional startup and managed upgrades |
+| [Portable ZIP](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.7.4_beta/AdaptiveResourceMonitor-v0.8.7.4_beta-windows-x64-portable.zip) | 71.1 MiB | Running ARM from an extracted folder with portable updates |
 
-[Release notes and downloads](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta) · [All releases](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases) ·
-[SHA-256 checksums](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.6.4_beta/SHA256SUMS.txt) ·
-[Signed manifest](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.6.4_beta/arm-update-windows-x64.json) ·
-[Public verification key](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.6.4_beta/arm-ed25519.pub)
+[Release notes and downloads](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.7.4_beta) · [All releases](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases) ·
+[SHA-256 checksums](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.7.4_beta/SHA256SUMS.txt) ·
+[Signed manifest](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.7.4_beta/arm-update-windows-x64.json) ·
+[Public verification key](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/download/v0.8.7.4_beta/arm-ed25519.pub)
 <!-- arm-public-downloads:end -->
 
 Use the **installer** for a per-user Windows installation with a Start menu shortcut and optional desktop shortcut or startup entry. Use the **portable ZIP** to run ARM from a folder you manage. Both editions use the same per-user settings and optional history directory. Both include the Python and Qt runtimes.
