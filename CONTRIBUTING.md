@@ -6,6 +6,10 @@ Search [open and closed issues](https://github.com/sonjamichelle/Adaptive_Resour
 
 Open a pull request from your fork on [GitHub](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/pulls) or coordinate a contribution in [Gitea](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor). Discuss the intended scope in an issue first. Base the changes on the current default branch. Describe the problem, the change and the validation performed, and reference the issue as `Refs #123`. Submit the patch directly to the original project through the [Design Creations contact form](https://www.designcreations.us/contact/index.php) or coordinate a submission with a maintainer. Please only contribute material that you have the right to submit on the terms in [LICENSE.md](LICENSE.md). Reviewers use the [issue lifecycle](ISSUE_MANAGEMENT.md).
 
+## Voluntary development support
+
+If ARM is useful to you, [a voluntary donation](https://www.paypal.com/donate/?hosted_button_id=SWTCLV72MYG3U) can help support development. Donations do not influence the review of contributions, provide development priority or guarantee features, bug fixes or timelines. The same [license terms](LICENSE.md) apply to everyone.
+
 ## Derivative distribution permission
 
 Private non-commercial development and contributions directly to the project are covered by the license. Before distributing a derivative publicly, obtain affirmative written permission from the Licensor. Commercial use also requires separate written permission as described in the license.

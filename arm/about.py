@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from .branding import (
-    APPLICATION_IMAGE, COMPANY_LOGO, COPYRIGHT, DEVELOPER, DESCRIPTION, INSTALL_ID,
+    APPLICATION_IMAGE, COMPANY_LOGO, COPYRIGHT, DEVELOPER, DESCRIPTION, DONATION_URL, INSTALL_ID,
     WEBSITE, asset, document, open_issue_tracker,
 )
 from .software_license import LICENSE_LABEL, LicenseDialog
@@ -141,6 +141,7 @@ class AboutPage(QWidget):
         license_label = QLabel(LICENSE_LABEL if bundled else "License file unavailable",
                                textFormat=Qt.TextFormat.PlainText)
         details.addRow("Software license", license_label)
+        details.addRow("Distribution model", QLabel("Donationware"))
         view = QPushButton("Application Details")
         view.clicked.connect(self.show_details)
         self.view_license = QPushButton("View License")
@@ -149,11 +150,22 @@ class AboutPage(QWidget):
         buttons = QHBoxLayout()
         buttons.addWidget(view)
         buttons.addWidget(self.view_license)
+        donate = QPushButton("Donate")
+        donate.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(DONATION_URL)))
+        buttons.addWidget(donate)
         self.report_issue = QPushButton(self.style().standardIcon(ISSUE_ICON), "Report Issue")
         self.report_issue.clicked.connect(open_issue_tracker)
         buttons.addWidget(self.report_issue)
         buttons.addStretch()
         details.addRow(buttons)
+        donationware = QLabel(
+            "Adaptive Resource Monitor is Donationware. If you find this application useful, "
+            "voluntary donations are appreciated and help support continued development. "
+            "Donations are not required and do not provide additional functionality, "
+            "preferential support or development priority."
+        )
+        donationware.setWordWrap(True)
+        details.addRow(donationware)
         layout.addWidget(information)
 
         self.updates = UpdatePanel(data_root, installation()[0])

@@ -17,6 +17,10 @@ Include the ARM version, Windows version and architecture, installation type, wh
 
 When available in ARM, **Report Issue** in About or the tray opens the same public tracker in your browser. **About → Application Details → Copy Application Information** copies only the app name and version, classification, OS and architecture, distribution, and Qt version. Review and paste it yourself if useful.
 
+## Voluntary development support
+
+ARM is Donationware. [Donations through PayPal](https://www.paypal.com/donate/?hosted_button_id=SWTCLV72MYG3U) are voluntary. Everyone has access to the same software, public updates and support channels. Donations do not confer priority support, guaranteed fixes or deadlines, development priority or additional [license rights](LICENSE.md).
+
 ## Share diagnostics safely
 
 Work from copies of logs or screenshots. Replace system names, account names, paths and addresses with generic values. Remove passwords, tokens, private keys, fingerprints, sensitive file paths, unrelated desktop content and other identifying details. Review the entire image or text before publishing. Keep original logs, settings, credential exports, trust files and full update receipts private.

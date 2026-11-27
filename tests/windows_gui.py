@@ -340,7 +340,7 @@ def verify_branding(session, results, captures=None):
     from PySide6.QtWidgets import QLabel, QPushButton
     from arm.branding import (
         APPLICATION_ICON, APPLICATION_IMAGE, APPLICATION_LOGO, COMPANY_LOGO, ICON_SIZES,
-        ISSUE_TRACKER_URL, WEBSITE, asset,
+        DONATION_URL, ISSUE_TRACKER_URL, WEBSITE, asset,
     )
     from arm.model import ALL, LOCAL
     from arm.version import NAME, VERSION
@@ -435,8 +435,13 @@ def verify_branding(session, results, captures=None):
     QTimer.singleShot(0, inspect_details)
     view = next(button for button in session.about_page.findChildren(QPushButton) if button.text() == "Application Details")
     license_button = session.about_page.view_license
+    donate = next(button for button in session.about_page.findChildren(QPushButton) if button.text() == "Donate")
     assert license_button.y() == view.y() and license_button.height() == view.height()
-    assert view.geometry().right() < license_button.x() < session.about_page.report_issue.x()
+    assert donate.y() == view.y() and donate.height() == view.height() and donate.isVisible()
+    assert view.geometry().right() < license_button.x() < donate.x() < session.about_page.report_issue.x()
+    assert {"Distribution model", "Donationware"} <= {
+        label.text() for label in session.about_page.findChildren(QLabel)
+    }
     results["about_license_button_row"] = True
     view.click()
     assert "Installation type" in details and "Source checkout" in details and VERSION in details
@@ -464,6 +469,9 @@ def verify_branding(session, results, captures=None):
         actions["Report Issue"].trigger()
         assert sink.destination == ISSUE_TRACKER_URL
         results["issue_reporting"] = True
+        donate.click()
+        assert sink.destination == DONATION_URL
+        results["donationware_about"] = True
     finally:
         QDesktopServices.unsetUrlHandler("https")
     if captures:

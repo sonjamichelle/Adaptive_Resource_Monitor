@@ -25,7 +25,7 @@
   <a href="#download">Download</a> · <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki/Quick-Start">Quick Start</a> ·
   <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki/User-Manual">User Manual</a> · <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki">Wiki</a> ·
   <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues">Report Issue</a> ·
-  <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki/Development-Roadmap">Development Roadmap</a> · <a href="LICENSE.md">License</a>
+  <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki/Development-Roadmap">Development Roadmap</a> · <a href="LICENSE.md">License</a> · <a href="#donationware-and-support-development">Donationware</a>
 </p>
 
 Adaptive Resource Monitor (ARM) is a lightweight real-time monitor for Windows. Its live tray graph keeps recent activity visible while the app collects in the background. Hover for details, or open the expanded monitor to inspect measurements for the computers you choose. Each machine has its own resource history. Remote Linux hosts use an ordinary SSH connection and keep their credentials in Windows Credential Manager. You can choose the resources, colors, intervals, tray visualization and optional history recording. Application updates are cryptographically verified before installation.
@@ -258,6 +258,14 @@ Adaptive Resource Monitor is **source-available** under the **Design Creations A
 <img src="docs/screenshots/offline-license-viewer.png" width="780" alt="View License opens the complete DC-ANCSA v1.0 terms in an offline window">
 
 </details>
+
+## Donationware and support development
+
+ARM is Donationware. If you find the application useful, a voluntary donation helps Design Creations continue developing and sharing its software. Everyone can download, install and use the software under the same applicable license and receives the same functionality and publicly available updates.
+
+Donations confer no additional rights, preferential support, development priority, promised features, expedited fixes or deadlines. Commercial use and public distribution of derivatives require written permission under [DC-ANCSA v1.0](LICENSE.md). PayPal handles donations directly.
+
+[Donate with PayPal](https://www.paypal.com/donate/?hosted_button_id=SWTCLV72MYG3U)
 
 ## Contributing and support
 

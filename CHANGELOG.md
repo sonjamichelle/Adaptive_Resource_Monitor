@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.7.4_beta — 2026-11-27
+
+- Identify ARM as Donationware in About and open the voluntary PayPal donation page from the Donate button. All application features, support options and public updates remain available regardless of a donation. DC-ANCSA v1.0 continues to govern use and distribution.
+
 ## v0.8.6.4_beta — 2026-11-26
 
 - Place View License immediately beside Application Details in About. The Software license row displays DC-ANCSA v1.0 as text. View License still opens the complete terms offline.
