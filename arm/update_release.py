@@ -10,7 +10,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from .branding import APP_MODEL_ID
-from .version import ROOT, version_key
+from .version import CHANNELS, ROOT, version_key
 
 MANIFEST = "arm-update-windows-x64.json"
 ARCHITECTURE = "windows-x64"
@@ -106,7 +106,16 @@ def verify_file(path, package):
         raise UpdateError("Package SHA-256 does not match the signed manifest")
 
 
-def eligible(version, installed):
+def exclusion_reason(version, installed):
+    """Return the policy reason a tag cannot be considered for this installation."""
     candidate = version_key(version)
     current = version_key(installed)
-    return candidate >= current and candidate[-1] in (current[-1], 3)
+    if candidate[:4] < current[:4]:
+        return f"Numerical version is older than installed {installed}"
+    if candidate[-1] < current[-1]:
+        return f"{CHANNELS[candidate[-1]].capitalize()} releases are ineligible for a {CHANNELS[current[-1]]} installation"
+    return None
+
+
+def eligible(version, installed):
+    return exclusion_reason(version, installed) is None

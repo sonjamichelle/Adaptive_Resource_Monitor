@@ -29,6 +29,10 @@ throughput scale per machine.
 Open the About tab from the monitor
 window or tray menu for build information, version history and support links.
 
+Signed update discovery supports gaining release maturity from v0.6.2.2_alpha
+onward. Production acceptance and promotion status are recorded in the
+implementation report. [Public releases](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases)
+
 The application version is defined in [VERSION.md](VERSION.md). Open **About →
 Check for Updates** to check the public ARM Releases page. Downloading and
 installing are separate actions. Settings can enable startup or periodic checks.

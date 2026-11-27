@@ -247,6 +247,8 @@ class UpdatePanel(QGroupBox):
                 self.status.setText("No eligible verified update is available.")
             if value.issues:
                 self.status.setText(self.status.text() + " Rejected " + "; ".join(value.issues)[:380])
+            if value.exclusions:
+                self.status.setText(self.status.text() + " Excluded " + "; ".join(value.exclusions)[:380])
             if value.release or not value.issues:
                 try:
                     write_atomic(self.last_file, json.dumps(datetime.now().astimezone().isoformat()).encode())

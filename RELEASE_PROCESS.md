@@ -23,3 +23,18 @@ never include private configuration, credentials or signing keys.
 Existing version tags must point to the same commit. A public release for that
 version is accepted only if its attachments match the pinned archive. Use a
 new authorized application version for any change to its released bytes.
+
+Before publishing a channel promotion, verify discovery and eligibility
+with the already-shipped updater. The v0.6.2.1_alpha updater requires an
+Alpha corrective release before it can discover Beta. Starting with
+v0.6.2.2_alpha, a release can progress to a more mature channel at identical
+numerical version counters. Production self-update acceptance and signed
+fixture discovery are required before the promoted release is published.
+
+Record the production executable version, process and profile fingerprints
+before and after development validation. Run candidate launch tests from
+isolated folders and profiles. Validate an installer in a disposable
+environment that has no production installation with the same Windows
+application ID. A production self-update starts from the current installed
+application's update controls after publication. Retain its shutdown
+acknowledgement, transaction log and restart receipt as acceptance evidence.

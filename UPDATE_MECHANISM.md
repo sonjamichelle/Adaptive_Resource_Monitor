@@ -28,8 +28,15 @@ JSON manifest and a base64 Ed25519 signature. Protocol 1 includes the
 application ID, Windows x64 architecture, exact VERSION.md value, Git commit,
 Jenkins build number and release notes. Its installed and portable package
 records carry the exact filename, byte count and SHA-256. The trusted public
-key is embedded in both executables. A client accepts its own release channel
-and eligible stable releases. A package for installation must be strictly newer.
+key is embedded in both executables.
+
+Starting with v0.6.2.2_alpha, a client accepts its own release channel and more
+mature channels. Supported channels in order are Alpha, Beta, Release
+Candidate (`rc`) and Stable. The numerical version must be at least as high
+as the installed version. Maturity breaks ties at identical numerical
+versions. A verified identical release can confirm that ARM is current.
+Downloading and installing require a strictly newer version. About reports
+version and channel exclusions separately from verification failures.
 
 ## Installed and portable applications
 

@@ -8,7 +8,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from .update_release import MANIFEST, MAX_MANIFEST_SIZE, Release, UpdateError, eligible, source_config, verify_file, verify_manifest
+from .update_release import (
+    MANIFEST, MAX_MANIFEST_SIZE, Release, UpdateError, eligible, exclusion_reason, source_config, verify_file, verify_manifest,
+)
 from .version import VERSION, version_key
 
 MAX_INDEX_SIZE = 2 * 1024**2
@@ -29,6 +31,7 @@ class Check:
     published: str | None
     release: Release | None
     issues: tuple[str, ...]
+    exclusions: tuple[str, ...] = ()
 
 
 class ReleaseClient:
@@ -88,8 +91,10 @@ class ReleaseClient:
                 break
         ordered = sorted(rows, key=version_key, reverse=True)
         issues = []
+        exclusions = []
         for version in ordered:
-            if not eligible(version, installed):
+            if reason := exclusion_reason(version, installed):
+                exclusions.append(f"{version}: {reason}")
                 continue
             try:
                 if len(rows[version]) != 1:
@@ -106,8 +111,8 @@ class ReleaseClient:
             except (UpdateError, HTTPError, KeyError, TypeError, AttributeError) as exc:
                 issues.append(f"{version}: {exc.code if isinstance(exc, HTTPError) else exc}")
                 continue
-            return Check(ordered[0], release, tuple(issues))
-        return Check(ordered[0] if ordered else None, None, tuple(issues))
+            return Check(ordered[0], release, tuple(issues), tuple(exclusions))
+        return Check(ordered[0] if ordered else None, None, tuple(issues), tuple(exclusions))
 
     def download(self, release, kind, storage, progress, cancelled):
         signed = verify_manifest(release.envelope, self.source["public_key"], release.version)

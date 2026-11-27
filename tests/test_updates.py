@@ -105,6 +105,84 @@ class UpdateTests(unittest.TestCase):
         with patch.object(self.client, "read", side_effect=URLError("unavailable")), self.assertRaises(URLError):
             self.client.check(VERSION, "installed")
 
+    def test_signed_discovery_allows_the_same_or_a_more_mature_channel(self):
+        channels = ("alpha", "beta", "rc", "stable")
+        for index, installed_channel in enumerate(channels):
+            installed = f"v0.6.2.2_{installed_channel}"
+            for maturity, offered in enumerate(channels):
+                newer = f"v0.6.2.3_{offered}"
+                with self.subTest(installed=installed, candidate=newer):
+                    row, envelope = self.row(self.metadata(newer))
+                    with patch.object(self.client, "read", side_effect=[canonical([row]), envelope]) as read:
+                        found = self.client.check(installed, "installed")
+                    self.assertEqual(found.issues, ())
+                    if maturity >= index:
+                        self.assertEqual(found.release.version, newer)
+                        self.assertEqual(found.exclusions, ())
+                    else:
+                        self.assertIsNone(found.release)
+                        self.assertIn(f"ineligible for a {installed_channel} installation", found.exclusions[0])
+                        self.assertEqual(read.call_count, 1)
+
+    def test_same_number_beta_is_selected_over_signed_current_alpha(self):
+        alpha, beta = "v0.6.2.2_alpha", "v0.6.2.2_beta"
+        old, _ = self.row(self.metadata(alpha))
+        current, signature = self.row(self.metadata(beta))
+        with patch.object(self.client, "read", side_effect=[canonical([old, current]), signature]):
+            found = self.client.check(alpha, "portable")
+        self.assertEqual((found.published, found.release.version, found.exclusions), (beta, beta, ()))
+        with patch.object(self.client, "read", return_value=canonical([old])) as read:
+            rejected = self.client.check(beta, "portable")
+        self.assertIsNone(rejected.release)
+        self.assertIn("Alpha releases are ineligible", rejected.exclusions[0])
+        self.assertEqual(read.call_count, 1)
+
+    def test_more_mature_channel_cannot_downgrade_the_numerical_version(self):
+        row, _ = self.row(self.metadata("v0.6.2.1_stable"))
+        with patch.object(self.client, "read", return_value=canonical([row])) as read:
+            found = self.client.check("v0.6.2.2_alpha", "installed")
+        self.assertIsNone(found.release)
+        self.assertIn("Numerical version is older", found.exclusions[0])
+        self.assertEqual(read.call_count, 1)
+
+    def test_identical_verified_release_cannot_be_downloaded_as_an_update(self):
+        row, envelope = self.row(self.metadata(VERSION))
+        with patch.object(self.client, "read", side_effect=[canonical([row]), envelope]):
+            found = self.client.check(VERSION, "installed")
+        self.assertEqual(found.release.version, VERSION)
+        with self.assertRaisesRegex(UpdateError, "newer"):
+            self.client.download(found.release, "installed", self.work, lambda *_: None, lambda: False)
+        self.assertFalse(list(self.work.iterdir()))
+
+    def test_discovery_rejects_unsupported_and_malformed_tags(self):
+        rows = [{"draft": False, "tag_name": tag} for tag in (
+            "v0.6.2.2_preview", "v0.6.2_beta", "v00.6.2.2_beta", "v0.6.2.65536_alpha",
+        )]
+        with patch.object(self.client, "read", return_value=canonical(rows)) as read:
+            found = self.client.check("v0.6.2.2_alpha", "installed")
+        self.assertIsNone(found.published)
+        self.assertIsNone(found.release)
+        self.assertEqual(read.call_count, 1)
+
+    def test_discovery_preserves_signature_architecture_and_gitea_classification_checks(self):
+        beta = self.metadata("v0.6.2.2_beta")
+        stable = self.metadata("v0.6.2.2_stable")
+        tampered = json.loads(self.sign(beta))
+        tampered["manifest"]["notes"] = "Modified"
+        for metadata, envelope, flag, expected in (
+            (beta, canonical(tampered), True, "signature is invalid"),
+            (beta | {"architecture": "windows-arm64"}, None, True, "metadata is invalid"),
+            (beta, None, False, "classification disagrees"),
+            (stable, None, True, "classification disagrees"),
+        ):
+            with self.subTest(expected=expected, tag=metadata["version"]):
+                row, signature = self.row(metadata, envelope)
+                with patch.object(self.client, "read", side_effect=[canonical([row | {"prerelease": flag}]), signature]):
+                    found = self.client.check("v0.6.2.2_alpha", "installed")
+                self.assertIsNone(found.release)
+                self.assertEqual(found.exclusions, ())
+                self.assertIn(expected, found.issues[0])
+
     def test_download_cancel_and_resume(self):
         release = verify_manifest(self.sign(self.metadata()), self.public)
         cancel = Event()

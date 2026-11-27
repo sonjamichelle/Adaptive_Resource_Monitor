@@ -1,5 +1,108 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.6.2.2_alpha — Update channel correction
+
+Windows Program Compatibility Assistant recorded the archived
+`release/v0.6.2.1_alpha/AdaptiveResourceMonitor-v0.6.2.1_alpha-windows-x64-setup.exe`
+launching at 7:44:03 PM CST on November 26. The installed uninstaller was
+written in the same second and its data was written at 7:44:12 PM. The
+new application started at 7:44:13 PM. Gitea published build #7 at 7:48:46
+PM. The installer was launched from the release archive, outside the
+disposable test paths and before the update was available publicly.
+A production updater transaction or receipt for this launch was absent.
+The available audit and session records do not identify the launcher.
+Jenkins build #7 compiled and archived the files, and publication #8
+handled Gitea publication. The recorded isolated installer tests used
+disposable targets. Production fingerprints now bracket development
+validation, and the release procedure requires the installed UI and a
+complete updater receipt for live acceptance.
+
+The corrective version changes only the Bug-Fix counter. Discovery,
+download and installation now share a policy that allows the installed
+channel and more mature channels while rejecting lower numerical versions.
+The release index distinguishes channel and version exclusions from
+signature or metadata failures. There was no explicit channel preference
+in the existing settings. All 34 regression tests passed, including signed
+same-number Alpha-to-Beta discovery and the full channel matrix.
+
+## v0.6.2.1_alpha publication and production assessment — 2026-11-26
+
+### Publication and anonymous verification
+
+Publish Release #8 succeeded using the seven artifacts from Build and
+Archive #7 at commit `035fb8ddc918337fdf6cf9743082aacae940b9db`. No build
+was run for publication. Gitea published the Alpha prerelease at 7:48:46 PM
+CST. Its version tag resolves to the pinned commit, and the public release
+notes match the tagged changelog and signed manifest.
+[Public release](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.6.2.1_alpha)
+[Publish Release #8](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/8/)
+
+Jenkins and an independent anonymous download verified all seven attachments
+against the archived bytes. The Ed25519 signature, Windows x64 architecture,
+package types, executable versions, package lengths, SHA-256 checksums and
+build identity passed. The earlier v0.6.1.1_alpha release is still public.
+
+| Windows x64 package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Installer | 60,163,795 | `7d79e692b88819298c6ae00bf6041cdcea77c2171965a784f39fd2961179080a` |
+| Portable ZIP | 74,681,911 | `966edc69169ab607f810e67af0def5ac1ad86360bfcd3996e884104b4ae32b98` |
+
+### Production Alpha acceptance
+
+The first production inspection found v0.6.2.1_alpha already installed and
+running. ARM logged the earlier instance stopping at 7:43:48 PM CST and the
+new version starting at 7:44:15 PM, before the target release became public.
+The production profile had no staged updater download, transaction plan or
+completion receipt. The required production self-update from v0.6.1.1_alpha
+could not be performed or established from that starting state. Automatic
+shutdown, installation, restart and the success notification for that
+transition remain unverified. The working installation was preserved.
+
+- Windows registration, the installed executable and the build receipt report
+  v0.6.2.1_alpha from build #7. All 298 installed payload files matched the
+  verified archive. One ARM process was running in the console session with
+  no orphaned ARM installer or maintenance process observed.
+- Rain, Phantom and LAMP had established SSH connections owned by ARM, and
+  Windows Credential Manager returned entries for all three saved references.
+  The production settings and pinned host-key file stayed byte-identical
+  during this assessment. A pre-upgrade data comparison for the earlier
+  version change was unavailable. Persistent recording is disabled, and
+  startup and periodic update checks remain disabled.
+- Explorer returned one registered tray icon for ARM. Six passive samples
+  showed six different rendered frames. Foreground hover, tray-menu and
+  All Systems interactions were outside this passive production check.
+- The frozen v0.6.1.1_alpha release client discovered and verified the
+  published Alpha as an eligible upgrade. The frozen client from the production
+  v0.6.2.1_alpha executable verified the same release as current. Both checks
+  used the actual public endpoint and no Gitea authentication.
+
+**Alpha production self-update acceptance did not pass.**
+
+### Beta promotion blocked
+
+The version comparison and discovery test used updater code read from the
+installed v0.6.2.1_alpha executable. Numeric counters sort before maturity,
+and the supported tags sort `alpha < beta < rc < stable`. Same-number Beta
+has a higher version key, but the shipped client only considers its current
+prerelease channel and eligible stable releases. It skipped the signed Beta
+fixture before requesting its manifest and selected the signed Alpha fixture
+as current. The fixture's Beta signature independently verified. The tests
+also confirmed same-version installation rejection, Beta-to-Alpha downgrade
+rejection, eligible numeric progression and malformed-version rejection.
+
+Production remains on v0.6.2.1_alpha. VERSION.md and the numerical version
+counters are unchanged. No Beta build, tag, publication, production
+notification exercise or installation was performed. An updater
+compatibility change would require a separately authorized corrective release.
+
+### Publication cleanup
+
+Removed 138,981,356 measured bytes of temporary anonymous downloads and
+previous-updater test files. The verifier removed its temporary payload
+extractions, and Jenkins deleted its publication workspace. The published
+releases, their archived packages and the existing validation evidence
+were retained.
+
 ## v0.6.2.1_alpha — Update notifications and installation lifecycle
 
 The Minor counter advanced. The hover monitor, expanded window and tray menu
@@ -10,9 +113,76 @@ shutdown and process exit, shows independent installation progress and
 checks the restarted version before reporting success. The release uses
 the existing Jenkins build and authorized publication jobs.
 
-Production self-update acceptance follows authorized publication using the
-installed v0.6.1.1_alpha updater. Its maintenance launcher handles the first
-upgrade. The newly installed application reads the legacy completion receipt.
+### Native Windows validation
+
+- The 28-test regression suite passed. The private desktop suite passed on
+  native Windows, including update availability, rejected signatures,
+  downloading, install readiness, deferral and notification deduplication.
+  Both Design Creations themes and the confirmation's View Changelog action
+  passed. The notification also appeared in the separate remote tray menu
+  and the pinned remote and All Systems popup. Live telemetry, individual
+  tray sources and separate network IN and OUT remained operational.
+- Disposable installed and portable x64 copies updated to a signed local
+  fixture. The installer exited with code 7 when its destination executable
+  was running. The updater waited for the original process and its clean
+  shutdown acknowledgement. An exit without acknowledgement left the
+  payload untouched. The independent helper displayed progress while the
+  installer installed the verified update.
+- The installed upgrade restored the expanded window and the portable
+  upgrade restored tray-only mode. The restarted process ran as the same
+  user in the same Windows session at the same elevation. A second launch
+  exited without creating another instance. Settings, Windows Credential
+  Manager references, saved fixture credentials, the SSH trust file and
+  existing SQLite samples survived. Each lifecycle test exited with code 0.
+- A fixture with a signed commit mismatch exercised rollback after
+  replacement. The previous portable executable was restored byte for byte
+  and restarted. A separate interrupted replacement recovered from the
+  persisted journal and cleared its RunOnce entry.
+- The previous v0.6.1.1_alpha frozen launcher applied the exact signed
+  portable archive from Jenkins #7 on a private desktop. It restarted
+  v0.6.2.1_alpha, the new application displayed confirmation from the legacy
+  receipt and the fixture profile remained identical. The installed
+  lifecycle tests used a disposable installer AppId.
+
+### Jenkins release candidate
+
+Build and Archive #7 completed on the native Windows agent after an SCM
+change. The pinned source
+commit is `035fb8ddc918337fdf6cf9743082aacae940b9db`. Jenkins validated PE
+metadata, installer and portable package identity, ZIP integrity and two
+portable launches. All seven archived files were retrieved and verified
+locally against the same commit and build. The ARM Ed25519 verification key,
+signature, package version, architecture, filenames, sizes and SHA-256
+hashes passed. The archive includes the checksums, signed manifest, public
+key, release notes and build receipt alongside the two packages.
+[Jenkins build record](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/7/)
+
+| Windows x64 artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| AdaptiveResourceMonitor-v0.6.2.1_alpha-windows-x64-setup.exe | 60,163,795 | `7d79e692b88819298c6ae00bf6041cdcea77c2171965a784f39fd2961179080a` |
+| AdaptiveResourceMonitor-v0.6.2.1_alpha-windows-x64-portable.zip | 74,681,911 | `966edc69169ab607f810e67af0def5ac1ad86360bfcd3996e884104b4ae32b98` |
+
+The verified archive is in `release/v0.6.2.1_alpha`. Six captures of the
+hover, expanded window, tray menu, About tab, installation progress and
+successful update are in `evidence/v0.6.2.1_alpha`. The availability captures
+show the signed local fixture version.
+
+### Production status before publication
+
+At the end of prepublication validation, production and the public release
+index still reported v0.6.1.1_alpha. The executable, settings and pinned SSH
+host-key file matched the before-test hashes. The new progress window
+applies to updates started from v0.6.2.1_alpha onward.
+
+### Validation cleanup
+
+Removed the staged compiler, private test key, test-only builds, profiles,
+QA scripts, temporary extractions and two superseded captures. Manual
+cleanup removed 2,536,086,381 bytes by logical file size. The two local
+package builds automatically removed another 686,018,471 bytes of build
+staging. The disposable Windows apps and their recovery entries were
+cleared. Jenkins cleaned its build workspace. The verified #7 archive
+and six requested captures are retained as release and validation evidence.
 
 ## Initial public release and production upgrade — 2026-11-26
 
