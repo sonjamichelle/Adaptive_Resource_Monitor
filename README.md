@@ -8,7 +8,8 @@ the icon's context menu. Windows may initially place the icon
 in the taskbar overflow. Move it into the visible notification area for
 continuous access.
 
-Use Settings to switch between Overlay, Stacked and Composite, choose devices,
+Open the Settings tab in the main window or choose Settings from the tray
+menu to switch between Overlay, Stacked and Composite, choose devices,
 set sampling and graph options, or enable SQLite history. Use Manage Remote Targets
 to add a Linux machine. A confirmed SSH key and working authentication are
 required. The default configuration monitors only the local machine and keeps

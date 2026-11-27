@@ -549,10 +549,16 @@ def verify_update_notices(session, wait_for, results, captures):
         before = confirmation.read_bytes()
         assert hover.update_banner.label.text() and expanded.update_banner.label.text()
         assert hover.update_banner.action.text() == "View Changelog"
+        session.hover.pin(True, LOCAL)
+        expanded.showMinimized()
+        session.qt.processEvents()
         hover.update_banner.action.click()
+        assert not expanded.isMinimized() and expanded.tabs.currentWidget() is session.about_page
         assert session.about_page.document_group.title() == "Change Log"
         assert hover.update_banner.isHidden() and expanded.update_banner.isHidden()
         assert confirmation.read_bytes() == before
+        session.hover.pin(False)
+        hover.hide()
         expanded.close()
     finally:
         fixture.doCleanups()
@@ -775,11 +781,11 @@ def evaluate_app(work, results, short=False, captures=None):
     import psutil
     from PySide6.QtCore import QEventLoop, QTimer
     from PySide6.QtGui import QGuiApplication
-    from PySide6.QtWidgets import QApplication, QSystemTrayIcon
+    from PySide6.QtWidgets import QApplication, QDialogButtonBox, QSystemTrayIcon
     from arm.application import Application
     from arm.branding import set_windows_identity
     from arm.config import STATIC_TRAY_MODE, ConfigStore, Settings, Target
-    from arm.dialogs import ConnectionsDialog, SettingsDialog
+    from arm.dialogs import ConnectionsDialog
     from arm.model import ALL, LOCAL, NETWORK, TOTAL, Connection, RESOURCES
     from arm.providers.ssh import update_host_key
     from ssh_fixture import Fixture, SECRET
@@ -912,17 +918,40 @@ def evaluate_app(work, results, short=False, captures=None):
         assert app.primaryScreen().availableGeometry().contains(session.popup.frameGeometry())
         if not short:
             measure("expanded")
+        prefs = session.settings_page
+        assert [session.expanded.tabs.tabText(index) for index in range(session.expanded.tabs.count())] == [
+            "Resource Monitor", "Settings", "About",
+        ]
+        session.expanded.tabs.setCurrentWidget(prefs)
+        assert prefs.isVisible() and prefs.tabs.count() == 7
+        minimized = session.settings.minimized
+        control = prefs.controls["minimized"].__self__
+        control.setChecked(not minimized)
+        session.expanded.tabs.setCurrentWidget(session.expanded.resource_page)
+        session.expanded.showMinimized()
+        next(action for action in menu.actions() if action.text() == "Settings").trigger()
+        assert session.expanded.tabs.currentWidget() is prefs and not session.expanded.isMinimized()
+        assert prefs.controls["minimized"]() == (not minimized)
+        buttons = prefs.findChild(QDialogButtonBox)
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).click()
+        assert prefs.controls["minimized"]() == minimized
+        prefs.controls["minimized"].__self__.setChecked(not minimized)
+        previous_range = session.settings.hover_range
+        changed_range = 300 if previous_range != 300 else 60
+        session.remember_monitor(changed_range)
+        buttons.button(QDialogButtonBox.StandardButton.Save).click()
+        saved = session.store.load()
+        assert saved.minimized == (not minimized) and saved.hover_range == changed_range
+        assert session.expanded.tabs.currentWidget() is prefs
+        session.remember_monitor(previous_range)
+        results["shared_settings_tab"] = "Main window and tray entry, draft retention, Cancel, and Save"
         session.expanded.close()
         assert not session.expanded.isVisible() and session.icons[LOCAL].isVisible()
         if not short:
-            prefs, connections = SettingsDialog(session), ConnectionsDialog(session)
-            prefs.show()
+            connections = ConnectionsDialog(session)
             connections.show()
-            assert prefs.isVisible() and connections.isVisible()
-            assert prefs.tabs.count() == 7 and connections.table.rowCount() == 0
-            prefs.close()
+            assert connections.isVisible() and connections.table.rowCount() == 0
             connections.close()
-            prefs.deleteLater()
             connections.deleteLater()
         with ExitStack() as stack:
             servers = [stack.enter_context(Fixture()) for _ in range(2)]
@@ -951,12 +980,12 @@ def evaluate_app(work, results, short=False, captures=None):
                 measure("two_loopback_ssh")
             from arm.graphs import tray_icon
             primary, other = (target.identifier for target in targets)
-            prefs = SettingsDialog(session)
+            session.open_settings()
             tray_machine = prefs.controls["tray_machine"].__self__
             assert [tray_machine.itemData(i) for i in range(tray_machine.count())] == [LOCAL, primary, other]
             tray_machine.setCurrentIndex(tray_machine.findData(primary))
             prefs.save()
-            prefs.deleteLater()
+            session.expanded.close()
             assert session.scopes() == [primary] and session.popup.displayed == (LOCAL,)
             menu = session.menus[primary]
             for choice in (ALL, other, LOCAL):

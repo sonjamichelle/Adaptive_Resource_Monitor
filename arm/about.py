@@ -203,17 +203,22 @@ class AboutPage(QWidget):
 
     def show_document(self, name):
         if name not in self.documents:
-            return
+            return False
         path = document(name)
         self.document_group.setTitle(self.documents[name])
         try:
             self.browser.setMarkdown(path.read_text(encoding="utf-8"))
-            if name == "CHANGELOG.md" and self.isVisible():
-                self.updates.dismiss_success_notice()
         except (OSError, UnicodeError) as exc:
             LOG.warning("Unable to read About document %s: %s", name, exc)
             self.browser.setPlainText(f"Unable to open {name}.")
+            return False
         self.browser.verticalScrollBar().setValue(0)
+        return True
+
+    def open_changelog(self):
+        if self.show_document("CHANGELOG.md"):
+            self.updates.dismiss_success_notice()
+            self.browser.setFocus()
 
     def show_license(self):
         try:
@@ -226,7 +231,9 @@ class AboutPage(QWidget):
         dialog.deleteLater()
 
     def open_link(self, target):
-        if target in self.documents:
+        if target == "CHANGELOG.md":
+            self.open_changelog()
+        elif target in self.documents:
             self.show_document(target)
         elif QUrl(target).scheme() == "https":
             QDesktopServices.openUrl(QUrl(target))

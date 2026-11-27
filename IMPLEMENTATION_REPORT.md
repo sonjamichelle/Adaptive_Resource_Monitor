@@ -15,6 +15,54 @@ The hover monitor's own button controls pinning.
 Windows and Linux machine headers report uptime from the existing local
 sampling worker and SSH telemetry stream.
 
+The supplied root license and the anonymous Gitea copy match SHA-256
+`d5dde5498f5a81b4cc9ca1db3a1b53d6cc343053a080ceaefcf20a423984f215`.
+Gitea's description identifies the current source as DC-ANCSA v1.0. The
+repository retained its existing visibility and prior release tags.
+
+The dependency review preserved the Qt, PySide, CPython, Paramiko and
+other wheel notices. It added the BSD notice from the NVIDIA wrapper
+source header and the OpenSSL and Tcl notices. The applications' own
+license governs original material. Separate upstream terms for bundled
+libraries are documented in the third-party notices.
+
+The 39 regressions and final private native Windows suite passed. The
+suite checked the offline license viewer and restored window placement,
+the banner and completion marker, graph-body dragging, tray click and
+pin behavior, and Windows uptime and Linux SSH fixture uptime. The
+Linux probe passed Bash syntax validation in the existing Ubuntu WSL
+environment.
+
+Build and Archive #17 built and signed commit
+`8079bf0ca626c7643e5cf3e928651f9c8e63c96a`. The Windows x64 installer,
+portable package, Ed25519 signature, exact bundled license and signed
+build identity verified. The Minor artifacts are staged locally and in
+Jenkins. Publication and installation await authorization.
+[Build #17](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/17/)
+
+| Windows x64 package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Installer | 60,120,801 | `4360334e1c8123664bada615a57cdbed4b319cb0948ebd1040a3b74d0320a881` |
+| Portable ZIP | 74,566,298 | `bec0c3656e65e0da8f12faebb585b27a186feca10b2981c090083904fa288a09` |
+
+The disposable Inno Setup wizard displayed the complete agreement from
+the archived payload. Declining disabled Next and canceling preserved the
+prior executable and data. Accepting advanced Setup. The separate unattended
+update-mode install and uninstall both returned 0. The installed license
+matched its source, and the fixture profile, saved display preferences and
+history remained identical. The wizard screenshot is retained in
+`evidence/v0.8.3.3_beta-native/installer-license-agreement.png`.
+
+The final private application check removed 242,695 bytes of test data.
+The disposable Setup check removed 278,016,814 bytes of compiler staging,
+test installers, installation files and fixture settings. The signed
+candidate and evidence are retained.
+
+A failed early disposable compiler stage left
+`%TEMP%\arm-qa-upgrade-i_uxybxg`. Windows denied access to the child
+compiler directory. Automatic command review rejected ownership and
+cleanup operations for that path.
+
 ## v0.8.2.3_beta — Machine ordering and display selection
 
 Two Feature increments combine drag-and-drop machine ordering and checkbox

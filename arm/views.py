@@ -304,10 +304,12 @@ class Monitor(QWidget):
     def monitor_visible(self):
         return self.isVisible() and (not self.expanded or self.tabs.currentWidget() is self.resource_page)
 
-    def show_page(self, about=False):
-        self.tabs.setCurrentWidget(self.about_page if about else self.resource_page)
+    def show_page(self, page=None):
+        self.tabs.setCurrentWidget(self.resource_page if page is None else page)
         self.ensurePolished()
         self.layout().activate()
+        if self.isMinimized():
+            self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized)
         self.show()
         fit_work_area(self)
         self.raise_()

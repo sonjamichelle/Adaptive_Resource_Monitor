@@ -27,7 +27,7 @@ from .branding import DARK, LIGHT, PUBLISHER, WEBSITE, application_icon, set_win
 from .collect import Collectors
 from .config import STATIC_TRAY_MODE, ConfigStore, Target, data_path, machine_ids, monitor_choices
 from .credentials import CredentialStore
-from .dialogs import ConnectionsDialog, SettingsDialog, TargetDialog
+from .dialogs import ConnectionsDialog, SettingsPage, TargetDialog
 from .graphs import Dashboard, tray_icon
 from .history_db import HistoryDb
 from .model import ALL, LOCAL, TOTAL, Connection
@@ -99,6 +99,8 @@ class Application(QObject):
         self.about_page.updates.quit_requested.connect(self.close_for_update)
         self.expanded = Monitor(self.dashboard, True, self.request_archive, self.open_expanded,
                                 self.set_pin, self.toggle_machine, self.reorder_machines, self.about_page)
+        self.settings_page = SettingsPage(self)
+        self.expanded.tabs.insertTab(1, self.settings_page, "Settings")
         self.expanded.setWindowIcon(self.brand_icon)
         self.window_geometry = WindowGeometry(self.expanded, self.root / "monitor-window.bin")
         self.popup = Monitor(self.dashboard, False, self.request_archive, self.open_expanded, self.set_pin,
@@ -120,7 +122,6 @@ class Application(QObject):
         self.view_timer.timeout.connect(self.refresh_views)
         self.view_timer.start()
         self.manager = None
-        self.settings_dialog = None
         self._closed = False
         self.qt.styleHints().colorSchemeChanged.connect(self.change_brand_theme)
         self.change_brand_theme()
@@ -395,16 +396,7 @@ class Application(QObject):
         self.process_message = message
 
     def open_settings(self):
-        if self.settings_dialog:
-            self.settings_dialog.raise_()
-            return
-        dialog = SettingsDialog(self)
-        self.settings_dialog = dialog
-        try:
-            dialog.exec()
-        finally:
-            self.settings_dialog = None
-            dialog.deleteLater()
+        self.expanded.show_page(self.settings_page)
 
     def manage(self):
         if self.manager:
@@ -519,7 +511,7 @@ class Application(QObject):
             QMessageBox.warning(self.expanded, "Start with Windows", str(exc))
 
     def about(self):
-        self.expanded.show_page(about=True)
+        self.expanded.show_page(self.about_page)
 
     def check_for_updates(self):
         self.about()
@@ -530,8 +522,7 @@ class Application(QObject):
             self.popup.hide()
         self.about()
         if changelog:
-            self.about_page.show_document("CHANGELOG.md")
-            self.about_page.browser.setFocus()
+            self.about_page.open_changelog()
         else:
             self.about_page.updates.buttons["Check for Updates"].setFocus()
 

@@ -101,24 +101,31 @@ class DeviceChoices(Choices):
             self.setVisible(False)
 
 
-class SettingsDialog(QDialog):
+class SettingsPage(QWidget):
     def __init__(self, app):
         super().__init__()
         self.app = app
-        self.cfg = app.settings
-        self.setWindowTitle("ARM Settings")
-        self.resize(610, 610)
+        self.tabs = None
+        layout = QVBoxLayout(self)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.save)
+        buttons.rejected.connect(self.reload)
+        layout.addWidget(buttons)
+        self.timer = QTimer(self, interval=1500)
+        self.timer.timeout.connect(self.update_diagnostics)
+
+    def reload(self):
+        index = self.tabs.currentIndex() if self.tabs is not None else 0
+        if self.tabs is not None:
+            self.tabs.hide()
+            self.layout().removeWidget(self.tabs)
+            self.tabs.deleteLater()
+        self.cfg = self.app.settings
         self.controls = {}
         self.tabs = QTabWidget()
         self.colors = dict(self.cfg.colors)
         self.network_colors = dict(self.cfg.network_colors)
         self.background = self.cfg.background
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.tabs)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(self.save)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
         self.general()
         self.tray()
         self.hover()
@@ -126,12 +133,23 @@ class SettingsDialog(QDialog):
         self.remote()
         self.history()
         self.diagnostics()
-        self.timer = QTimer(self)
-        self.timer.setInterval(1500)
-        self.timer.timeout.connect(self.update_diagnostics)
+        self.tabs.setCurrentIndex(index)
+        self.layout().insertWidget(0, self.tabs, 1)
+        self.tabs.currentChanged.connect(self.update_diagnostics)
+        self.initial = self.values()
+        self.initial_startup = self.startup.isChecked()
+        self.update_diagnostics()
+
+    def showEvent(self, event):
+        if self.tabs is None or (self.values() == self.initial and self.startup.isChecked() == self.initial_startup):
+            self.reload()
+        super().showEvent(event)
         self.timer.start()
         self.update_diagnostics()
-        self.window_geometry = WindowGeometry(self, app.root / "settings-window.bin")
+
+    def hideEvent(self, event):
+        self.timer.stop()
+        super().hideEvent(event)
 
     def section(self, title):
         page = QWidget()
@@ -261,20 +279,26 @@ class SettingsDialog(QDialog):
         form.addRow(self.diagnostic)
 
     def update_diagnostics(self):
-        self.diagnostic.setText(self.app.diagnostics())
+        if self.diagnostic.isVisible():
+            self.diagnostic.setText(self.app.diagnostics())
+
+    def values(self):
+        return {**{key: getter() for key, getter in self.controls.items()},
+                "background": self.background, "colors": dict(self.colors),
+                "network_colors": dict(self.network_colors)}
 
     def save(self):
-        updates = {key: getter() for key, getter in self.controls.items()}
-        cfg = replace(self.app.settings, **updates, background=self.background, colors=self.colors,
-                      network_colors=self.network_colors)
+        updates = {key: value for key, value in self.values().items() if value != self.initial[key]}
+        startup = self.startup.isChecked()
         try:
-            self.app.apply(cfg)
-            if self.startup.isChecked() != self.app.startup_enabled():
-                self.app.set_startup(self.startup.isChecked())
+            if updates:
+                self.app.apply(replace(self.app.settings, **updates))
+            if startup != self.initial_startup and startup != self.app.startup_enabled():
+                self.app.set_startup(startup)
         except (OSError, ValueError) as exc:
             QMessageBox.warning(self, "Settings", str(exc))
             return
-        self.accept()
+        self.reload()
 
 
 class TargetDialog(QDialog):
