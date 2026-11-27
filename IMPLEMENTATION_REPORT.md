@@ -25,6 +25,75 @@ signature or metadata failures. There was no explicit channel preference
 in the existing settings. All 34 regression tests passed, including signed
 same-number Alpha-to-Beta discovery and the full channel matrix.
 
+### Corrective Alpha release
+
+The native Windows agent's Build and Archive #8 succeeded at commit
+`363c29fcdc3766c0e28558a0a0ede76308b7405f`. Publish Release #9 reused that
+archive. All seven public attachments passed independent anonymous size
+and SHA-256 verification, including a fresh signature, PE metadata and
+portable package check. The old Alpha releases remain public.
+[Build #8](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/8/)
+[Publication #9](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/9/)
+[Public corrective Alpha](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.6.2.2_alpha)
+
+| Windows x64 package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Installer | 60,156,586 | `266b7aeb525a963f05605152e5be0bb7d41ac86537d5dbdf18d9ae6e1e91efa6` |
+| Portable ZIP | 74,683,844 | `fc6074018fd04a60a7b8c9c5d671dcec991cec8cde5435c5774c2e04a29c57b2` |
+
+The live v0.6.2.1_alpha executable, maintenance launcher, build receipt,
+settings, SSH host keys and process identity matched the recorded start
+of development. Existing update-check and startup preferences and all
+three credential references also matched. Persistent history was off.
+The installed executable's released update client verified the public
+v0.6.2.2_alpha as eligible. The corrective archive's frozen updater also
+selected the correctly signed v0.6.2.2_beta fixture with identical
+numerical counters. This test used a temporary fixture outside production.
+
+### Corrective Alpha production self-update
+
+The installed ARM controls discovered v0.6.2.2_alpha, displayed the
+available notice and downloaded the verified Windows x64 installer.
+The hover and tray menu notices were confirmed at the workstation and
+captured, along with About, the expanded banner and the ready state.
+Two checks kept a single Windows notification record for the release.
+Install Later preserved the verified package and its file timestamp.
+
+Transaction `1cfe7ea68d16460198509fcb49ff4382` recorded the normal update
+controls handing off to the independent launcher. The main process
+acknowledged closure and exited successfully at 8:18:31.284 PM CST.
+The installer log was created at 8:18:32.712 PM. The independent progress
+window was visible during installation. The launcher restarted ARM in
+the same user session and at the same elevation. The restarted process
+wrote the v0.6.2.2_alpha completion receipt and the GUI displayed success.
+The maintenance processes exited. All 298 installed payload files
+matched the archived build.
+The operator confirmed a separate reopen after seeing the successful
+automatic restart. Explorer was the parent of that later launch. The
+automatic restart receipt and success capture were already present.
+
+The settings and SSH key files were byte-identical after the update.
+Startup, automatic update checks and Windows notification preferences
+were preserved. All three credential entries were accessible. ARM
+reestablished SSH connections to Rain, Phantom and LAMP. The installed
+corrective Alpha also selected the correctly signed same-number Beta
+fixture in a read-only test of the shipped code.
+Explorer registered the Local Machine tray icon, and six passive samples
+showed six distinct live frames. The periodic check option remains under
+Settings → General with the production interval set to Off.
+
+All Systems reported four connected machines with fresh Local Machine, Rain,
+Phantom and LAMP samples and separate network IN and OUT readings. The live
+Explorer hover window displayed the same independent histories. Production
+Alpha acceptance passed, including discovery of the signed same-number
+Beta fixture by the installed corrective updater.
+
+Publication readback removed 134,842,388 bytes of duplicate downloads.
+The isolated frozen-client check removed 4,148,335 bytes, and the private
+Windows UI validation removed 59,841 bytes. Package verifiers and Jenkins
+removed their staging. The verified release archive and prepublication
+fingerprints are retained as evidence.
+
 ## v0.6.2.1_alpha publication and production assessment — 2026-11-26
 
 ### Publication and anonymous verification

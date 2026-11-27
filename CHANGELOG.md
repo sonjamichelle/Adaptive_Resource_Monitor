@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.2.2_beta — 2026-11-26
+
+- Promote Adaptive Resource Monitor to Beta after verifying the production self-update, restoration of local and remote monitoring, and signed same-number Beta discovery.
+- The first Beta marks the completion of the original Windows monitoring scope. Beta development focuses on operational stability, monitoring accuracy, compatibility, and update reliability.
+
 ## v0.6.2.2_alpha — 2026-11-26
 
 - Allow signed updates to the same or a more mature release channel, including Beta at the same numerical version as Alpha.

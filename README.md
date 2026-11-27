@@ -33,9 +33,16 @@ Signed update discovery supports gaining release maturity from v0.6.2.2_alpha
 onward. Production acceptance and promotion status are recorded in the
 implementation report. [Public releases](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases)
 
+The first Beta covers the original Windows monitoring scope, including
+remote Linux monitoring. Beta development prioritizes stability, performance,
+hardware and remote compatibility, security, and update and installer
+reliability.
+
 The application version is defined in [VERSION.md](VERSION.md). Open **About →
 Check for Updates** to check the public ARM Releases page. Downloading and
-installing are separate actions. Settings can enable startup or periodic checks.
+installing are separate actions. Under **Settings → General**, enable
+**Check for updates at startup** or use **Check for updates periodically**
+to choose Off, every 4 hours, every 12 hours, daily, or weekly.
 Both Windows x64 distributions use signed update metadata. See
 [Update mechanism](UPDATE_MECHANISM.md) and [Release process](RELEASE_PROCESS.md).
 See [BUILD.md](BUILD.md) for Windows build and verification commands,
