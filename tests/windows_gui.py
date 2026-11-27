@@ -645,6 +645,7 @@ def evaluate_app(work, results, short=False, captures=None):
             assert release_check.wait(10)
             return Check(None, None, ())
 
+        wait_for(lambda: update.job is None)
         with patch.object(update.client, "check", side_effect=slow_check):
             try:
                 sample = session.collectors.last[LOCAL]
