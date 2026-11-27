@@ -34,6 +34,8 @@ SetupIconFile={#AppIcon}
 WizardImageFile={#WizardImage}
 WizardSmallImageFile={#WizardEmblem}
 UninstallDisplayIcon={app}\{#Executable}
+CloseApplications=no
+RestartApplications=no
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
@@ -53,6 +55,31 @@ Root: HKCU; Subkey: "{#RunKey}"; ValueType: string; ValueName: "AdaptiveResource
 Filename: "{app}\{#Executable}"; Description: "Open Adaptive Resource Monitor"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function OpenPayloadFile(Name: String; Access, Share: Cardinal; Security: Integer;
+  Creation, Flags: Cardinal; Template: THandle): THandle;
+  external 'CreateFileW@kernel32.dll stdcall';
+
+function ClosePayloadFile(Handle: THandle): Boolean;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Target: String;
+  Handle: THandle;
+begin
+  Result := '';
+  Target := ExpandConstant('{app}\{#Executable}');
+  if FileExists(Target) then
+  begin
+    { An executable loaded as a Windows image cannot be opened for writing. }
+    Handle := OpenPayloadFile(Target, 2, 7, 0, 3, 0, 0);
+    if Handle = THandle(-1) then
+      Result := 'Close Adaptive Resource Monitor from its notification-area menu, then run Setup again.'
+    else
+      ClosePayloadFile(Handle);
+  end;
+end;
+
 function ArmUpdate: Boolean;
 begin
   Result := ExpandConstant('{param:ARMUPDATE|0}') = '1';

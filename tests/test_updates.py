@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 from urllib.error import URLError
 from zipfile import ZipFile
+import psutil
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -16,7 +17,8 @@ from arm.branding import APP_MODEL_ID
 from arm.config import Settings
 from arm.update_client import ReleaseClient, UpdateCancelled
 from arm.update_release import MANIFEST, UpdateError, artifact_name, canonical, verify_manifest
-from arm.update_worker import unpack_portable
+from arm.update_state import Phase, notice, notify_once, result_for, transaction_from_ack
+from arm.update_worker import unpack_portable, wait_parent
 from arm.version import VERSION, version_key
 
 COUNTERS = version_key(VERSION)
@@ -150,3 +152,49 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(Settings.from_dict({"update_startup": True, "update_interval": 168}).update_interval, 168)
         default = Settings.from_dict({"update_startup": "yes", "update_interval": 169})
         self.assertEqual((default.update_startup, default.update_interval), (False, 0))
+
+    def test_notification_only_once_across_checks_and_restarts(self):
+        path = self.work / "notices.json"
+        self.assertFalse(notify_once(path, NEW, False))
+        self.assertFalse(path.exists())
+        self.assertTrue(notify_once(path, NEW, True))
+        self.assertFalse(notify_once(path, NEW, True))
+        self.assertEqual(notice(Phase.CHECKING, None), "")
+        self.assertEqual(notice(Phase.INSTALLING, NEW, True), "")
+        self.assertEqual(notice(Phase.AVAILABLE, NEW), f"Update Available: {NEW}")
+        self.assertEqual(notice(Phase.READY, NEW, True), f"Update Ready to Install: {NEW}")
+
+    def test_update_result_requires_successful_restart_receipt(self):
+        directory = self.work / "updates" / "transactions" / ("a" * 32)
+        directory.mkdir(parents=True)
+        (directory / "plan.json").write_text(json.dumps({"old": VERSION, "new": NEW}))
+        status = directory / "status.json"
+        status.write_text(json.dumps({"state": "complete", "message": "Legacy completion status"}))
+        ready = directory / "ready.json"
+        self.assertEqual(transaction_from_ack(self.work, str(ready)), directory)
+        self.assertIsNone(transaction_from_ack(self.work, str(status)))
+        self.assertIsNone(result_for(directory, NEW))
+        ready.write_text(json.dumps({"version": NEW, "pid": 10}))
+        self.assertEqual(result_for(directory, NEW), (Phase.SUCCESS, notice(Phase.SUCCESS, NEW)))
+        self.assertIsNone(result_for(directory, VERSION))
+        status.write_text(json.dumps({"state": "rolled_back", "message": "Restored prior application"}))
+        self.assertEqual(result_for(directory, VERSION), (Phase.RESTORED, "Restored prior application"))
+        self.assertIsNone(result_for(directory, NEW))
+
+    def test_shutdown_requires_acknowledgement_and_confirmed_process_exit(self):
+        target = self.work
+        plan = {"parent": 10, "created": 1, "old": VERSION}
+        with patch("arm.update_worker.psutil.Process", side_effect=psutil.NoSuchProcess(10)):
+            with self.assertRaisesRegex(UpdateError, "without confirming"):
+                wait_parent(plan, target, self.work)
+            (self.work / "closed.json").write_text(json.dumps({"pid": 10, "version": VERSION}))
+            wait_parent(plan, target, self.work)
+        with patch("arm.update_worker.psutil.Process") as process:
+            process.return_value.create_time.return_value = 1
+            process.return_value.exe.return_value = str(target / "AdaptiveResourceMonitor.exe")
+            with self.assertRaisesRegex(UpdateError, "shut down in time"):
+                wait_parent(plan, target, self.work, timeout=.05)
+            self.assertEqual(process.return_value.exe.call_count, 1)
+            (self.work / "abort").touch()
+            with self.assertRaisesRegex(UpdateError, "canceled"):
+                wait_parent(plan, target, self.work)

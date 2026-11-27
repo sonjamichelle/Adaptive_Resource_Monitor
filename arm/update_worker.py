@@ -1,7 +1,9 @@
 """Independent Windows updater. Transaction data never includes the ARM user profile."""
 import argparse
+from contextlib import contextmanager
 import json
 import logging
+import msvcrt
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -21,6 +23,7 @@ from .branding import INSTALL_ID, PUBLISHER
 from .config import data_path
 from .update_client import write_atomic
 from .update_release import MANIFEST, UpdateError, eligible, source_config, verify_file, verify_manifest
+from .update_state import read_json, transaction_from_ack
 from .version import VERSION, read_version, version_key
 
 EXE = "AdaptiveResourceMonitor.exe"
@@ -119,6 +122,45 @@ def set_status(plan_dir, state, message):
     LOG.info("%s. %s", state, message)
 
 
+@contextmanager
+def update_lock(root):
+    with (root / "updates" / "maintenance.lock").open("a+b") as lock:
+        try:
+            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        except OSError as exc:
+            raise UpdateError("Another update is already running.") from exc
+        yield
+
+
+def updates_locked(root):
+    if not (root / "updates").is_dir():
+        return False
+    try:
+        with update_lock(root):
+            return False
+    except UpdateError:
+        return True
+
+
+def save_presentation(plan_dir, state):
+    write_atomic(plan_dir / "presentation.json", json.dumps(state).encode())
+
+
+def presentation(plan_dir):
+    state = read_json(plan_dir / "presentation.json", {})
+    if not isinstance(state, dict) or type(state.get("expanded")) is not bool:
+        return {}
+    rect = state.get("geometry")
+    if (not isinstance(rect, list) or len(rect) != 4 or any(type(value) is not int for value in rect)
+            or any(abs(value) > 32768 for value in rect) or min(rect[2:]) <= 0):
+        state.pop("geometry", None)
+    return state
+
+
+def acknowledge_shutdown(plan_dir):
+    write_atomic(plan_dir / "closed.json", json.dumps({"pid": os.getpid(), "version": VERSION}).encode())
+
+
 def prepare(release, artifact, target, kind, root):
     config = source_config()
     signed = verify_manifest(release.envelope, config["public_key"], release.version)
@@ -192,25 +234,45 @@ def remove_managed(path):
             path.unlink()
 
 
-def wait_parent(data, target, plan_dir):
-    limit = monotonic() + 75
+def requesting_process(data, target):
+    try:
+        parent = psutil.Process(data["parent"])
+        if abs(parent.create_time() - data["created"]) <= 0.01 and Path(parent.exe()).resolve() == target / EXE:
+            return parent
+    except psutil.NoSuchProcess:
+        pass
+    raise UpdateError("The requesting process is not this Adaptive Resource Monitor installation.")
+
+
+def wait_parent(data, target, plan_dir, timeout=75):
+    expected = {"pid": data["parent"], "version": data["old"]}
+    limit = monotonic() + timeout
+    closing = False
     while monotonic() < limit:
+        if (plan_dir / "abort").exists():
+            raise UpdateError("Installation canceled before touching the application.")
+        acknowledged = read_json(plan_dir / "closed.json") == expected
+        if acknowledged and not closing:
+            set_status(plan_dir, "closing", "Closing Adaptive Resource Monitor…")
+            closing = True
         try:
             parent = psutil.Process(data["parent"])
-            if abs(parent.create_time() - data["created"]) > 0.01:
-                return
-            if Path(parent.exe()).resolve() != target / EXE:
-                raise UpdateError("The requesting process is not this ARM executable")
+            alive = abs(parent.create_time() - data["created"]) <= 0.01
         except psutil.NoSuchProcess:
+            alive = False
+        if not alive:
+            if not acknowledged:
+                raise UpdateError("ARM exited without confirming that settings and history were closed. Installation stopped.")
             return
-        if (plan_dir / "abort").exists():
-            raise UpdateError("Installation canceled before touching the application")
+        if Path(parent.exe()).resolve() != target / EXE:
+            raise UpdateError("The requesting process is not this Adaptive Resource Monitor installation.")
         sleep(.25)
-    raise UpdateError("The application did not exit. Installation was deferred.")
+    raise UpdateError("ARM did not shut down in time. To retry, close any open ARM dialogs and start the update again.")
 
 
 def restart(target, version, plan_dir):
     ready = plan_dir / "ready.json"
+    ready.unlink(missing_ok=True)
     child = subprocess.Popen([str(target / EXE)], cwd=target, env=dict(os.environ, **{ACK: str(ready)}))
     try:
         deadline = monotonic() + 35
@@ -253,13 +315,17 @@ def transact(plan_dir, recover=False):
         if journal.get("committed"):
             remove_managed(work)
             recovery_entry(plan_dir, False)
+            set_status(plan_dir, "complete", f"Updated and restarted Adaptive Resource Monitor {data['new']}.")
             return
+        set_status(plan_dir, "recovering", "Restoring the previous application after an interrupted installation…")
         rollback(target, work, journal)
-        remove_managed(work)
-        recovery_entry(plan_dir, False)
-        set_status(plan_dir, "rolled_back", "Restored the previous application after an interrupted installation.")
         restart(target, data["old"], plan_dir)
+        set_status(plan_dir, "rolled_back", "Restored the previous application after an interrupted installation.")
+        recovery_entry(plan_dir, False)
+        remove_managed(work)
         return
+    requesting_process(data, target)
+    set_status(plan_dir, "verifying", "Verifying the signed update package…")
     release = verify_manifest((plan_dir / MANIFEST).read_bytes(), source_config()["public_key"], data["new"])
     view = registered_view(target)
     kind = "installed" if view is not None else "portable"
@@ -281,9 +347,13 @@ def transact(plan_dir, recover=False):
             shutil.copy2(artifact, payload / package.name)
             verify_file(payload / package.name, package)
             verify_executable(payload / package.name, release.version)
-        set_status(plan_dir, "waiting", "Verified the update. Waiting for the monitor to close and save its history.")
+        set_status(plan_dir, "waiting", "Saving application settings and pending telemetry…")
         wait_parent(data, target, plan_dir)
-        verify_file(artifact, package)
+        set_status(plan_dir, "verifying", "Rechecking the update package before installation…")
+        signed = verify_manifest((plan_dir / MANIFEST).read_bytes(), source_config()["public_key"], data["new"])
+        if signed.envelope != release.envelope:
+            raise UpdateError("The signed update manifest changed during shutdown.")
+        verify_file(artifact, signed.packages[kind])
         for name in managed_entries(target, view is not None):
             safe_entry(target / name)
         originals = managed_entries(target, view is not None)
@@ -310,16 +380,20 @@ def transact(plan_dir, recover=False):
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, UNINSTALL_KEY, 0, winreg.KEY_READ | view) as key:
                     if winreg.QueryValueEx(key, "DisplayVersion")[0] != release.version:
                         raise UpdateError("Windows installer registration did not report the expected version")
+            set_status(plan_dir, "verifying_installation", "Verifying installed files and application version…")
             verify_payload(target, release.version)
             build = json.loads((target / "BUILD.json").read_bytes())
             if (build.get("source_revision"), build.get("jenkins_build")) != (release.commit, release.build):
                 raise UpdateError("Installed build identity does not match the signed manifest")
+            set_status(plan_dir, "restarting", "Restarting Adaptive Resource Monitor…")
             restart(target, release.version, plan_dir)
         except Exception as exc:
+            LOG.exception("Installation or startup failed")
+            set_status(plan_dir, "recovering", "Update failed. Restoring the previous release…")
             rollback(target, work, journal)
-            set_status(plan_dir, "rolled_back", f"Installed update failed. Restored the previous application. {exc}")
-            recovery_entry(plan_dir, False)
             restart(target, data["old"], plan_dir)
+            set_status(plan_dir, "rolled_back", f"Update failed. The previous version was restored and restarted. {exc}")
+            recovery_entry(plan_dir, False)
             return
         journal["committed"] = True
         write_atomic(checkpoint, json.dumps(journal).encode())
@@ -332,12 +406,9 @@ def transact(plan_dir, recover=False):
             remove_managed(work)
 
 
-def signal_ready():
-    if value := os.environ.pop(ACK, None):
-        path = Path(value)
-        transactions = data_path() / "updates" / "transactions"
-        if path.name == "ready.json" and path.parent.parent.resolve() == transactions.resolve():
-            write_atomic(path, json.dumps({"version": VERSION, "pid": os.getpid()}).encode())
+def signal_ready(root=None):
+    if directory := transaction_from_ack(root or data_path(), os.environ.pop(ACK, None)):
+        write_atomic(directory / "ready.json", json.dumps({"version": VERSION, "pid": os.getpid()}).encode())
 
 
 def main():
@@ -351,10 +422,26 @@ def main():
         return 2
     logging.basicConfig(filename=plan_dir / "maintenance.log", level=logging.INFO, encoding="utf-8",
                         format="%(asctime)s %(levelname)s %(message)s")
-    try:
-        transact(plan_dir, args.recover)
-    except Exception as exc:
-        LOG.exception("Maintenance failed")
-        set_status(plan_dir, "failed", str(exc))
-        return 1
-    return 0
+    def run():
+        try:
+            with update_lock(data_path()):
+                set_status(plan_dir, "preparing", "Preparing the Adaptive Resource Monitor update…")
+                transact(plan_dir, args.recover)
+        except Exception as exc:
+            LOG.exception("Maintenance failed")
+            message = f"{exc}\nDiagnostics: {plan_dir / 'maintenance.log'}"
+            journal = read_json(plan_dir / "journal.json", {})
+            if journal and not journal.get("committed"):
+                message += ("\nClose ARM before attempting recovery again. If it still fails, use the previous "
+                            "version's installer or restore the portable files from the previous verified package. "
+                            "Leave the ARM profile directory in place.")
+                try:
+                    recovery_entry(plan_dir, False)
+                except OSError:
+                    LOG.exception("Could not remove the scheduled recovery entry")
+            set_status(plan_dir, "failed", message)
+            return 1
+        return 0
+
+    from .update_progress import show_progress
+    return show_progress(plan_dir, run)

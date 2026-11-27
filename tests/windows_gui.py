@@ -428,6 +428,89 @@ def verify_branding(session, results, captures=None):
     results["verified_about_and_tray_actions"] = True
 
 
+def verify_update_notices(session, wait_for, results, captures):
+    from PySide6.QtCore import QPoint
+    from unittest.mock import patch
+    from arm.model import ALL, LOCAL
+    from arm.update_client import Check
+    from arm.update_release import verify_manifest
+    from arm.update_state import Phase
+    from test_updates import NEW, PACKAGE, Response, UpdateTests
+
+    def capture(widget, filename):
+        session.qt.processEvents()
+        if captures:
+            assert widget.grab().save(str(captures / filename))
+
+    menu = session.menus[LOCAL]
+    hover, expanded = session.popup, session.expanded
+    update = session.about_page.updates
+    assert not menu.update.isVisible() and hover.update_banner.isHidden()
+    initial_size = hover.popup_size()
+    notices = []
+    update.notify.connect(notices.append)
+    rejected = Check(NEW, None, ("Fixture signature rejected",))
+    with patch.object(update.client, "check", return_value=rejected):
+        update.check_now()
+        wait_for(lambda: update.job is None)
+    assert not menu.update.isVisible() and not notices
+
+    fixture = UpdateTests()
+    try:
+        fixture.setUp()
+        release = verify_manifest(fixture.sign(fixture.metadata()), fixture.public)
+        checked = Check(NEW, release, ())
+        with patch.object(update.client, "check", return_value=checked):
+            for _ in range(2):
+                update.check_now()
+                wait_for(lambda: update.job is None)
+        available = f"Update Available: {NEW}"
+        assert update.phase is Phase.AVAILABLE and notices == [available]
+        assert menu.actions()[1] is menu.update and menu.update.text() == available
+        session.hover.show(LOCAL)
+        assert hover.popup_size().height() > initial_size.height()
+        assert hover.update_banner.label.text() == available
+        capture(hover, "update-hover.png")
+        session.select_machine(ALL, LOCAL)
+        session.hover.pin(True, LOCAL)
+        assert hover.update_banner.isVisible() and hover.selected_machine == ALL
+        session.hover.pin(False)
+        session.select_machine(LOCAL, LOCAL)
+        hover.hide()
+        session.open_expanded()
+        assert expanded.update_banner.isVisible() and expanded.monitor_visible
+        capture(expanded, "update-expanded.png")
+        menu.popup(QPoint(20, 20))
+        capture(menu, "update-tray-menu.png")
+        menu.hide()
+        menu.update.trigger()
+        assert expanded.tabs.currentWidget() == session.about_page and expanded.update_banner.isVisible()
+        capture(expanded, "update-about.png")
+
+        with patch.object(update.client, "open", return_value=Response(PACKAGE)):
+            update.client.source["public_key"], original_key = fixture.public, update.client.source["public_key"]
+            try:
+                update.download_now()
+                wait_for(lambda: update.job is None)
+                assert update.phase is Phase.READY and update.downloaded.is_file()
+                update.defer_install()
+                assert menu.update.text() == f"Update Ready to Install: {NEW}"
+                assert update.restore()[1][1] == update.downloaded
+            finally:
+                update.client.source["public_key"] = original_key
+        update.downloaded.unlink()
+        update.downloaded = None
+        with patch.object(update.client, "check", return_value=rejected):
+            update.check_now()
+            wait_for(lambda: update.job is None)
+        assert not menu.update.isVisible() and expanded.update_banner.isHidden()
+        assert hover.popup_size() == initial_size
+        expanded.close()
+    finally:
+        fixture.doCleanups()
+    results["verified_shared_update_notices"] = "Verified, ready, rejected, deferred and duplicate notification states"
+
+
 def evaluate_app(work, results, short=False, captures=None):
     import psutil
     from PySide6.QtCore import QEventLoop, QTimer
@@ -536,6 +619,7 @@ def evaluate_app(work, results, short=False, captures=None):
         assert update.fields["Latest published"].text() == "No public releases"
         assert "UTC" in update.fields["Last successful check"].text()
         session.expanded.close()
+        verify_update_notices(session, wait_for, results, captures)
         results["asynchronous_update_check_with_live_telemetry"] = True
         modes = {}
         for mode in ("Stacked", STATIC_TRAY_MODE, "Overlay", "Composite"):

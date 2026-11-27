@@ -6,13 +6,19 @@ the time of the last successful check in the local timezone, package type and
 size, verification status, progress and signed release notes. ARM defaults to
 manual checks. Settings offers a startup check and periodic checks every
 4 hours, 12 hours, day or week. A verified update uses the existing tray icon
-for its notification. Checks and downloads run separately from collection.
+for its Windows notification once per verified version, including across
+restarts. **Show Windows update notifications** controls these transient
+messages. Verified releases also appear below the hover monitor's machine
+and connection controls, in the expanded window and below the tray menu's
+version. These entries open the About tab. No row appears when there is no
+eligible verified update. Checks and downloads run separately from collection.
 
 **Download Update** stores the signed envelope and verified package in the
 application's per-user updates directory. Cancel leaves a partial file. A retry
 requests a byte range and validates the server's response. If the server
 returns a complete response, ARM starts the file over. **Install Later**
-keeps the package. **Install Update** asks for approval.
+keeps the package and its ready-to-install notice. **Install Update** asks for
+approval.
 
 ## Release contract
 
@@ -29,13 +35,22 @@ and eligible stable releases. A package for installation must be strictly newer.
 
 The installed variant is identified from Windows' uninstall registration.
 The maintenance launcher verifies the download, starts from a staged copy
-outside the installed directory and waits for the monitor to close. The
-monitor closes its collectors and drains pending history writes. The launcher
+outside the installed directory. It verifies the requesting process's
+executable path, PID and creation time. ARM saves its presentation, removes
+its tray icons, stops workers and drains pending history writes. The launcher
+requires ARM's shutdown acknowledgement and waits for the process to exit
+before replacing files. It reports progress in its own branded window.
+A directly launched installer asks the user to close ARM if the destination
+executable is in use. The launcher
 uses the native installer for an installed copy. For portable copies it
 verifies and extracts the ZIP into staging on the same volume and replaces
 only distribution-owned entries. Existing files outside those entries stay
 in place. Before restarting ARM, the launcher verifies the new executable,
-version and build metadata. The restarted process signals readiness.
+version and build metadata. The launcher restarts ARM in the invoking user
+session with the previous tray-only or expanded presentation. The restarted
+process signals readiness before ARM reports success and offers the changelog.
+An upgrade initiated by v0.6.1.1 uses that version's launcher and progress
+behavior. The newer application still reads its completion receipt.
 
 ## Recovery
 
@@ -46,6 +61,7 @@ interrupted transaction can recover from the independently staged launcher
 through the per-user Windows RunOnce entry. If a file is still locked, the
 transaction and its backup remain available. The About panel reads the most
 recent update result. Details are in maintenance.log and, for Setup,
-installer.log under the transaction directory. Keep transaction files while an
-installation is pending. Profiles, the Credential Manager, SSH trust and
+installer.log under the transaction directory. If an automated restore fails,
+close ARM and use the previous verified installer or restore the previous
+portable payload. Keep the ARM profile and transaction logs. Profiles, the Credential Manager, SSH trust and
 telemetry history are outside the file-replacement transaction.

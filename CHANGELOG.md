@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.2.1_alpha — 2026-11-26
+
+- Show verified update availability and installation readiness in the hover monitor, main window, and tray menu. Windows notifications can be turned off and repeat checks do not repeat them.
+- Wait for ARM to finish saving settings and history and exit before replacing any application files. Show independent installation progress and report restart or recovery results.
+- Restore the prior tray-only or expanded presentation after an update and let users open the changelog from the success confirmation.
+
 ## v0.6.1.1_alpha — 2026-11-26
 
 - Added signed update discovery, verified downloads and authorized installation for installed and portable Windows x64 editions.

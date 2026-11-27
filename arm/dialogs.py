@@ -161,6 +161,7 @@ class SettingsDialog(QDialog):
         self.select(form, "Theme", "theme", [(value, value) for value in ("System", "Light", "Dark")])
         self.select(form, "Default machine", "default_machine", machine_choices(self.app.dashboard))
         self.check(form, "Check for updates at startup", "update_startup")
+        self.check(form, "Show Windows update notifications", "update_notifications")
         self.select(form, "Check for updates periodically", "update_interval",
                     [("Off", 0), ("Every 4 hours", 4), ("Every 12 hours", 12),
                      ("Daily", 24), ("Weekly", 168)])

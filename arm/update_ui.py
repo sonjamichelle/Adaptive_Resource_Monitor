@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 import logging
 from threading import Event, Thread
+from time import monotonic
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from .update_client import ReleaseClient, UpdateCancelled, write_atomic
 from .update_release import MANIFEST, UpdateError, eligible, verify_file, verify_manifest
+from .update_state import Phase, notice, notify_once, read_json, result_for
 from .version import VERSION, version_key
 
 LOG = logging.getLogger(__name__)
@@ -20,9 +22,10 @@ PACKAGE_LABELS = {"installed": "Windows x64 installer", "portable": "Windows x64
 
 class UpdatePanel(QGroupBox):
     notify = Signal(str)
+    changed = Signal(str, bool)
     result = Signal(str, object)
     transferred = Signal(int, int)
-    quit_requested = Signal()
+    quit_requested = Signal(object)
 
     def __init__(self, root, installation_kind):
         super().__init__("Application Update")
@@ -32,7 +35,12 @@ class UpdatePanel(QGroupBox):
         self.client = ReleaseClient()
         self.job = None
         self.release = self.downloaded = self.plan = None
-        self.announced = set()
+        self.phase = Phase.CURRENT
+        self.outcome = None
+        self.success_banner = False
+        self.message = ""
+        self.paused = False
+        self.worker = None
         self.cancel = Event()
         self.closing = False
         self.policy = None
@@ -80,12 +88,14 @@ class UpdatePanel(QGroupBox):
         self.periodic.timeout.connect(self.check_now)
         self.handoff = QTimer(self, interval=250)
         self.handoff.timeout.connect(self.poll_worker)
+        self.receipt = QTimer(self, interval=350)
+        self.receipt.timeout.connect(self.poll_receipt)
         self.result.connect(self.finished)
         self.transferred.connect(self.update_progress)
         self.set_controls()
 
     def configure(self, settings):
-        policy = (settings.update_startup, settings.update_interval)
+        policy = (settings.update_startup, settings.update_interval, settings.update_notifications)
         if self.policy == policy:
             return
         first = self.policy is None
@@ -95,6 +105,8 @@ class UpdatePanel(QGroupBox):
             self.periodic.start(settings.update_interval * 3_600_000)
         if first:
             QTimer.singleShot(900, self.initialize)
+        else:
+            self.set_controls()
 
     def initialize(self):
         if self.job:
@@ -113,7 +125,7 @@ class UpdatePanel(QGroupBox):
         plans = sorted((self.root / "transactions").glob("*/status.json"),
                        key=lambda path: path.stat().st_mtime, reverse=True)
         if plans:
-            status = json.loads(plans[0].read_bytes()).get("message")
+            status = result_for(plans[0].parent)
         verified = []
         for manifest in (self.root / "downloads").glob(f"*/{MANIFEST}"):
             try:
@@ -121,11 +133,39 @@ class UpdatePanel(QGroupBox):
                 if eligible(release.version, VERSION) and release.version != VERSION:
                     package = release.packages[self.kind]
                     artifact = manifest.parent / package.name
-                    verify_file(artifact, package)
-                    verified.append((release, artifact))
+                    if artifact.is_file():
+                        verify_file(artifact, package)
+                        verified.append((release, artifact, False))
+                    elif artifact.with_suffix(artifact.suffix + ".part").is_file():
+                        verified.append((release, None, True))
             except (OSError, UpdateError):
                 continue
-        return status, max(verified, key=lambda pair: version_key(pair[0].version), default=(None, None))
+        return status, max(verified, key=lambda entry: version_key(entry[0].version),
+                           default=(None, None, False))
+
+    def follow_restart(self, directory):
+        self.restart_result = directory
+        self.receipt_deadline = monotonic() + 45
+        self.receipt.start()
+
+    def poll_receipt(self):
+        result = result_for(self.restart_result)
+        if result:
+            self.receipt.stop()
+            self.accept_outcome(result)
+        elif monotonic() > self.receipt_deadline:
+            self.receipt.stop()
+
+    def accept_outcome(self, result):
+        self.outcome, self.message = result
+        if self.outcome is Phase.SUCCESS:
+            try:
+                self.success_banner |= notify_once(self.root / "confirmation.json", VERSION, True)
+            except OSError:
+                self.success_banner = True
+                LOG.exception("Could not persist the ARM update confirmation")
+        self.status.setText(self.message)
+        self.set_controls()
 
     def start(self, operation, action):
         if self.closing or self.job or self.plan:
@@ -147,7 +187,8 @@ class UpdatePanel(QGroupBox):
             if not self.closing:
                 self.result.emit(*operation_result)
 
-        Thread(target=work, name=f"ARM update {operation}", daemon=True).start()
+        self.worker = Thread(target=work, name=f"ARM update {operation}", daemon=True)
+        self.worker.start()
 
     def check_now(self):
         if self.job or self.plan:
@@ -165,16 +206,21 @@ class UpdatePanel(QGroupBox):
         self.notes.setPlainText(release.notes)
 
     def finished(self, operation, value):
+        previous_job = self.job
         self.job = None
         self.progress.hide()
         if operation == "restore":
-            message, (release, artifact) = value
+            outcome, (release, artifact, self.paused) = value
             if release:
                 self.set_release(release)
                 self.downloaded = artifact
-                self.fields["Verification"].setText("Manifest signature and package SHA-256 verified")
-            if message or artifact:
-                self.status.setText(message or "Verified package saved. Install it when ready.")
+                if artifact:
+                    self.fields["Verification"].setText("Manifest signature and package SHA-256 verified")
+                    self.status.setText("Verified package saved. Install it when ready.")
+                else:
+                    self.status.setText("Download paused. Retry to resume.")
+            if outcome:
+                self.accept_outcome(outcome)
             if self.policy and self.policy[0]:
                 self.check_now()
         elif operation == "check":
@@ -182,6 +228,7 @@ class UpdatePanel(QGroupBox):
             if value.release:
                 if not self.release or value.release.envelope != self.release.envelope:
                     self.downloaded = None
+                    self.paused = False
                 self.set_release(value.release)
                 if self.release.version == VERSION:
                     self.status.setText("This is the latest verified version.")
@@ -189,12 +236,10 @@ class UpdatePanel(QGroupBox):
                     self.status.setText("A verified update is available." if self.downloaded is None else "Verified package saved.")
                     if self.downloaded:
                         self.fields["Verification"].setText("Manifest signature and package SHA-256 verified")
-                    if self.release.version not in self.announced:
-                        self.announced.add(self.release.version)
-                        self.notify.emit(self.release.version)
             else:
                 if not self.downloaded:
                     self.release = None
+                    self.paused = False
                     self.notes.clear()
                     self.fields["Latest eligible verified"].setText("None")
                     self.fields["Download size"].setText("—")
@@ -209,6 +254,7 @@ class UpdatePanel(QGroupBox):
                 except OSError:
                     LOG.exception("Could not save the last successful ARM update check")
         elif operation == "download":
+            self.paused = False
             self.downloaded = value
             self.fields["Verification"].setText("Manifest signature and package SHA-256 verified")
             self.status.setText("Verified package saved. Install it when ready.")
@@ -218,6 +264,12 @@ class UpdatePanel(QGroupBox):
             self.handoff.start()
         else:
             self.status.setText(("Update unavailable. " if operation == "error" else "") + value)
+            if previous_job == "download":
+                self.paused = True
+            elif previous_job == "prepare":
+                self.downloaded = None
+                self.outcome = Phase.FAILED
+                self.message = self.status.text()
         self.set_controls()
 
     def download_now(self):
@@ -248,6 +300,7 @@ class UpdatePanel(QGroupBox):
         from .about import installation
         from .update_worker import prepare
         release, artifact, target = self.release, self.downloaded, installation()[1]
+        self.outcome = None
         self.status.setText("Revalidating the package and preparing the maintenance launcher…")
         self.progress.setRange(0, 0)
         self.progress.show()
@@ -258,19 +311,23 @@ class UpdatePanel(QGroupBox):
 
     def poll_worker(self):
         self.elapsed += 250
-        try:
-            status = json.loads((self.plan / "status.json").read_bytes())
-        except (OSError, ValueError):
-            status = {}
+        status = read_json(self.plan / "status.json", {})
         if status.get("state") == "waiting":
             self.handoff.stop()
-            self.quit_requested.emit()
+            self.quit_requested.emit(self.plan)
         elif status.get("state") == "failed" or self.elapsed > 70_000:
             self.handoff.stop()
-            (self.plan / "abort").touch()
+            self.abort_install(status.get("message") or
+                               "The maintenance launcher did not become ready. Installation was deferred.")
+
+    def abort_install(self, message):
+        if self.plan:
+            try:
+                (self.plan / "abort").touch()
+            except OSError:
+                LOG.exception("Could not signal that ARM canceled the installation")
             self.plan = None
-            self.status.setText(status.get("message") or "The maintenance launcher did not become ready. Installation was deferred.")
-            self.set_controls()
+        self.accept_outcome((Phase.FAILED, message))
 
     def set_controls(self):
         available = self.release is not None and self.release.version != VERSION
@@ -280,9 +337,41 @@ class UpdatePanel(QGroupBox):
                   idle and self.downloaded is not None)
         for button, enabled in zip(self.buttons.values(), states):
             button.setEnabled(enabled)
+        if self.plan or self.job == "prepare":
+            self.phase = Phase.INSTALLING
+        elif self.job == "download":
+            self.phase = Phase.DOWNLOADING
+        elif self.job == "check":
+            self.phase = Phase.CHECKING
+        elif self.outcome in (Phase.FAILED, Phase.RESTORED):
+            self.phase = self.outcome
+        elif self.downloaded:
+            self.phase = Phase.READY
+        elif self.paused:
+            self.phase = Phase.PAUSED
+        elif available:
+            self.phase = Phase.AVAILABLE
+        else:
+            self.phase = self.outcome or Phase.CURRENT
+        version = self.release.version if available else None
+        show_success = self.phase is Phase.SUCCESS and self.success_banner
+        label = notice(self.phase, VERSION if show_success else version, bool(self.downloaded))
+        self.changed.emit(label, self.phase is Phase.SUCCESS)
+        key = f"success:{VERSION}" if self.phase is Phase.SUCCESS else f"available:{version}"
+        if label and self.policy:
+            try:
+                if notify_once(self.root / "notifications.json", key, self.policy[2]):
+                    self.notify.emit(label)
+            except OSError:
+                LOG.exception("Could not persist the ARM update notification")
 
     def stop(self):
         self.closing = True
         self.cancel.set()
         self.handoff.stop()
         self.periodic.stop()
+        self.receipt.stop()
+        if self.worker:
+            self.worker.join(timeout=20)
+            return not self.worker.is_alive()
+        return True

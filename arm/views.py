@@ -154,6 +154,34 @@ class MachineSection(QFrame):
             header.addWidget(details)
 
 
+class UpdateBanner(QFrame):
+    def __init__(self, open_update):
+        super().__init__()
+        self.setObjectName("armUpdateBanner")
+        row = QHBoxLayout(self)
+        row.setContentsMargins(8, 3, 6, 3)
+        self.label = plain()
+        row.addWidget(self.label, 1)
+        self.action = QPushButton("View Update")
+        self.action.clicked.connect(lambda: open_update(self.success))
+        row.addWidget(self.action)
+        self.success = False
+        self.hide()
+
+    def update_notice(self, message, success):
+        self.success = success
+        self.label.setText(message)
+        self.action.setText("View Changelog" if success else "View Update")
+        self.setVisible(bool(message))
+
+    def theme(self, colors):
+        self.setStyleSheet(f"""
+            QFrame#armUpdateBanner {{ background: {colors.highlight}; border: 1px solid {colors.border}; border-radius: 4px; }}
+            QFrame#armUpdateBanner QLabel {{ color: {colors.accent}; font-weight: 600; }}
+            QFrame#armUpdateBanner QPushButton {{ color: {colors.accent}; padding: 2px 8px; }}
+        """)
+
+
 class Monitor(QWidget):
     def __init__(self, dashboard, expanded, request_archive, switch_expanded, set_pin, about_page=None):
         flags = Qt.WindowType.Window if expanded else (
@@ -277,12 +305,18 @@ class Monitor(QWidget):
 
     def popup_size(self):
         cfg = self.dashboard.settings
+        banner = self.update_banner.sizeHint().height() + self.layout().spacing() if (
+            hasattr(self, "update_banner") and not self.update_banner.isHidden()) else 0
         if self.selected_machine != ALL:
-            return QSize(cfg.popup_width, cfg.popup_height)
+            return QSize(cfg.popup_width, cfg.popup_height + banner)
         # Cap in HoverMonitor against the work area. The scroll area keeps
         # six columns together even on a narrow monitor.
         rows_height = sum(max(138, section.sizeHint().height()) for section in self.sections.values())
-        return QSize(max(cfg.popup_width, 875), max(cfg.popup_height, rows_height + 72))
+        return QSize(max(cfg.popup_width, 875), max(cfg.popup_height, rows_height + 72) + banner)
+
+    def add_update_banner(self, open_update):
+        self.update_banner = UpdateBanner(open_update)
+        self.layout().insertWidget(0 if self.expanded else 2, self.update_banner)
 
     def sync_devices(self):
         if not self.expanded:

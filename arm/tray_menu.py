@@ -1,6 +1,6 @@
 """Design Creations tray commands for each visible ARM icon."""
-from PySide6.QtCore import QSize
-from PySide6.QtGui import QActionGroup, QFont, QIcon
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import QActionGroup, QColor, QFont, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QStyle, QVBoxLayout, QWidget, QWidgetAction
 
 from .about import BrandImage
@@ -17,6 +17,11 @@ class TrayMenu(QMenu):
         self.app, self.scope = app, scope
         self.setAccessibleName(f"{NAME} tray menu")
         self.add_header()
+        self.update = self.action(self, "", None, app.open_update)
+        self.update.setVisible(False)
+        font = self.update.font()
+        font.setBold(True)
+        self.update.setFont(font)
         self.addSeparator()
         open_monitor = self.action(self, "Open Resource Monitor", SP.SP_ComputerIcon,
                                    app.open_expanded)
@@ -120,6 +125,23 @@ class TrayMenu(QMenu):
         self.start.setChecked(app.startup_enabled())
 
     def theme(self, colors):
+        icon = QIcon()
+        for size in (16, 24, 32):
+            pixels = QPixmap(size, size)
+            pixels.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixels)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.scale(size / 16, size / 16)
+            pen = QPen(QColor(colors.accent), 1.7)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawLine(8, 2, 8, 10)
+            painter.drawLine(5, 7, 8, 10)
+            painter.drawLine(11, 7, 8, 10)
+            painter.drawLine(3, 13, 13, 13)
+            painter.end()
+            icon.addPixmap(pixels)
+        self.update.setIcon(icon)
         self.setStyleSheet(f"""
             QMenu {{
                 background-color: {colors.background}; color: {colors.text};

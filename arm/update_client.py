@@ -118,6 +118,7 @@ class ReleaseClient:
         folder.mkdir(parents=True, exist_ok=True)
         output = folder / package.name
         part = output.with_suffix(output.suffix + ".part")
+        write_atomic(folder / MANIFEST, signed.envelope)
         if output.is_file():
             try:
                 verify_file(output, package)
@@ -136,7 +137,6 @@ class ReleaseClient:
                     raise
             except (URLError, OSError) as exc:
                 raise UpdateError(f"Download interrupted: {exc}. Retry to resume.") from None
-        write_atomic(folder / MANIFEST, signed.envelope)
         return output
 
     def fetch(self, address, part, size, progress, cancelled):

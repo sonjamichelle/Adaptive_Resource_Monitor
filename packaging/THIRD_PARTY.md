@@ -2,7 +2,8 @@
 
 The Windows package includes CPython, Qt 6 and its PySide6 Python bindings,
 psutil, Paramiko and its cryptographic dependencies, NVIDIA's NVML Python
-bindings, and the PyInstaller bootloader. The NVIDIA display driver's NVML DLL
+bindings, Tcl/Tk for the maintenance window, and the PyInstaller bootloader.
+The NVIDIA display driver's NVML DLL
 is provided by the driver. License text distributed by the dependency wheels
 is included in this directory.
 

@@ -1,5 +1,19 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.6.2.1_alpha — Update notifications and installation lifecycle
+
+The Minor counter advanced. The hover monitor, expanded window and tray menu
+use the About updater's verified-release state. Install Later retains the
+download and its ready notice. A Windows notification preference controls
+one-time notifications. The maintenance launcher waits for a clean ARM
+shutdown and process exit, shows independent installation progress and
+checks the restarted version before reporting success. The release uses
+the existing Jenkins build and authorized publication jobs.
+
+Production self-update acceptance follows authorized publication using the
+installed v0.6.1.1_alpha updater. Its maintenance launcher handles the first
+upgrade. The newly installed application reads the legacy completion receipt.
+
 ## Initial public release and production upgrade — 2026-11-26
 
 [Adaptive Resource Monitor v0.6.1.1_alpha](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.6.1.1_alpha)

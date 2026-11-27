@@ -11,7 +11,7 @@ from time import time
 import winreg
 
 import psutil
-from PySide6.QtCore import QLockFile, QObject, QSignalBlocker, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QLockFile, QObject, QRect, QSignalBlocker, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QSystemTrayIcon
 
@@ -82,12 +82,18 @@ class Application(QObject):
         self.icons = {}
         self.menus = {}
         self.about_page = AboutPage(self.root)
+        self.update_label = ""
+        self.update_notice_changelog = False
+        self.update_shutdown = None
         self.about_page.updates.notify.connect(self.update_notice)
-        self.about_page.updates.quit_requested.connect(self.qt.quit)
+        self.about_page.updates.changed.connect(self.sync_update_notice)
+        self.about_page.updates.quit_requested.connect(self.close_for_update)
         self.expanded = Monitor(self.dashboard, True, self.request_archive, self.open_expanded,
                                 self.set_pin, self.about_page)
         self.expanded.setWindowIcon(self.brand_icon)
         self.popup = Monitor(self.dashboard, False, self.request_archive, self.open_expanded, self.set_pin)
+        for view in (self.popup, self.expanded):
+            view.add_update_banner(self.open_update)
         self.hover = HoverMonitor(self.popup, self.dashboard, self.icons)
         for view in (self.popup, self.expanded):
             view.machine.currentIndexChanged.connect(partial(self.monitor_selected, view))
@@ -115,6 +121,8 @@ class Application(QObject):
         self.brand_colors = DARK if scheme == Qt.ColorScheme.Dark else LIGHT
         self.about_page.theme(self.brand_colors)
         self.expanded.brand_tabs(self.brand_colors)
+        for view in (self.popup, self.expanded):
+            view.update_banner.theme(self.brand_colors)
         for menu in self.menus.values():
             menu.theme(self.brand_colors)
 
@@ -193,10 +201,11 @@ class Application(QObject):
             icon = QSystemTrayIcon(self)
             icon.setIcon(self.brand_icon)
             icon.activated.connect(partial(self.activate_icon, machine))
-            icon.messageClicked.connect(self.about)
+            icon.messageClicked.connect(lambda: self.open_update(self.update_notice_changelog))
             self.icons[machine] = icon
             self.menus[machine] = TrayMenu(self, machine)
             self.menus[machine].theme(self.brand_colors)
+            self.set_menu_update(self.menus[machine])
             icon.setContextMenu(self.menus[machine])
             icon.show()
         self.sync_menus()
@@ -497,10 +506,56 @@ class Application(QObject):
         self.about()
         self.about_page.updates.check_now()
 
-    def update_notice(self, version):
+    def open_update(self, changelog=False):
+        if not self.popup.pinned:
+            self.popup.hide()
+        self.about()
+        if changelog:
+            self.about_page.show_document("CHANGELOG.md")
+            self.about_page.browser.setFocus()
+        else:
+            self.about_page.updates.buttons["Check for Updates"].setFocus()
+
+    def set_menu_update(self, menu):
+        menu.update.setText(self.update_label)
+        menu.update.setVisible(bool(self.update_label))
+
+    def sync_update_notice(self, message, success):
+        if not success:
+            self.update_label = message
+        else:
+            self.update_label = ""
+        for menu in self.menus.values():
+            self.set_menu_update(menu)
+        for view in (self.popup, self.expanded):
+            view.update_banner.update_notice(message, success)
+        if self.popup.isVisible():
+            self.hover.reposition()
+
+    def update_notice(self, message):
         icon = self.icons.get(self.settings.tray_machine)
-        if icon:
-            icon.showMessage(NAME, f"Verified update {version} is available. Open About for details.")
+        if icon and icon.supportsMessages():
+            self.update_notice_changelog = message.startswith(f"{NAME} successfully updated")
+            icon.showMessage(NAME, message, self.brand_icon)
+
+    def update_presentation(self):
+        rect = self.expanded.geometry()
+        return {"expanded": self.expanded.isVisible() and not self.expanded.isMinimized(),
+                "geometry": [rect.x(), rect.y(), rect.width(), rect.height()],
+                "about": self.expanded.tabs.currentWidget() is self.about_page}
+
+    def close_for_update(self, directory):
+        updates = self.about_page.updates
+        try:
+            if self.store.load() != self.settings:
+                self.store.save(self.settings)
+            from .update_worker import save_presentation
+            save_presentation(directory, self.update_presentation())
+        except OSError as exc:
+            updates.abort_install(f"Could not save application state. {exc}")
+            return
+        self.update_shutdown = directory
+        self.qt.quit()
 
     def open_website(self):
         QDesktopServices.openUrl(QUrl(WEBSITE))
@@ -509,7 +564,7 @@ class Application(QObject):
         if self._closed:
             return
         self._closed = True
-        self.about_page.updates.stop()
+        updates_stopped = self.about_page.updates.stop()
         for timer in (self.tray_timer, self.hover_timer, self.view_timer):
             timer.stop()
         for icon in self.icons.values():
@@ -524,9 +579,13 @@ class Application(QObject):
         LOG.info("%s stopped", NAME)
         logging.getLogger().removeHandler(self.logger)
         self.logger.close()
+        return updates_stopped
 
 
 def main():
+    from .update_worker import ACK, acknowledge_shutdown, presentation, signal_ready, updates_locked
+    from .update_state import transaction_from_ack
+
     set_windows_identity()
     app = QApplication(sys.argv)
     app.setApplicationName(NAME)
@@ -542,13 +601,29 @@ def main():
         return 0
     controller = None
     try:
+        transaction = transaction_from_ack(root, os.environ.get(ACK))
+        if not transaction and updates_locked(root):
+            return 0
         controller = Application(app, root)
-        if not controller.settings.minimized:
+        state = presentation(transaction) if transaction else {}
+        if state.get("expanded", not controller.settings.minimized):
             controller.open_expanded()
-        from .update_worker import signal_ready
-        signal_ready()
+            if geometry := state.get("geometry"):
+                rect = QRect(*geometry)
+                if any(screen.availableGeometry().intersects(rect) for screen in app.screens()):
+                    controller.expanded.setGeometry(rect)
+            if state.get("about"):
+                controller.expanded.tabs.setCurrentWidget(controller.about_page)
+        if transaction:
+            controller.about_page.updates.follow_restart(transaction)
+        signal_ready(root)
         return app.exec()
     finally:
-        if controller is not None:
-            controller.close()
-        lock.unlock()
+        closed = False
+        try:
+            if controller is not None:
+                closed = controller.close()
+        finally:
+            lock.unlock()
+        if closed and controller.update_shutdown:
+            acknowledge_shutdown(controller.update_shutdown)

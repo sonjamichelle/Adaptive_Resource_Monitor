@@ -68,6 +68,9 @@ def copy_notices(payload):
     python_license = Path(sys.base_prefix) / "LICENSE.txt"
     if python_license.is_file():
         shutil.copyfile(python_license, notices / "Python-LICENSE.txt")
+    tcl_tk_license = next(Path(sys.base_prefix).glob("tcl/tk*/license.terms"), None)
+    if tcl_tk_license:
+        shutil.copyfile(tcl_tk_license, notices / "Tcl-Tk-license.terms")
     shutil.copyfile(ROOT / "packaging" / "THIRD_PARTY.md", notices / "README.md")
 
 
@@ -125,7 +128,8 @@ def build(compiler, output):
             "--name", worker_name, "--paths", str(ROOT), "--workpath", str(temporary / "work"),
             "--distpath", str(temporary / "maintenance"), "--specpath", str(temporary),
             "--version-file", str(version_file), "--manifest", str(ROOT / "packaging" / "windows.manifest"),
-            "--icon", str(ICON), "--exclude-module", "PySide6", *update_data, str(ROOT / "tools" / "maintenance.py"),
+            "--icon", str(ICON), "--exclude-module", "PySide6", "--add-data", f"{ICON};branding",
+            *update_data, str(ROOT / "tools" / "maintenance.py"),
         ])
         run([
             sys.executable, "-m", "PyInstaller", "--noconfirm", "--noupx", "--windowed",
