@@ -340,7 +340,7 @@ def verify_branding(session, results, captures=None):
     from PySide6.QtWidgets import QLabel, QPushButton
     from arm.branding import (
         APPLICATION_ICON, APPLICATION_IMAGE, APPLICATION_LOGO, COMPANY_LOGO, ICON_SIZES,
-        SUPPORT_URL, WEBSITE, asset,
+        ISSUE_TRACKER_URL, WEBSITE, asset,
     )
     from arm.model import ALL, LOCAL
     from arm.version import NAME, VERSION
@@ -372,7 +372,9 @@ def verify_branding(session, results, captures=None):
     assert menu.version.text() == VERSION and menu.machines.entries[LOCAL].isChecked()
     assert tuple(menu.machines.entries) == (LOCAL,)
     actions = {action.text(): action for action in menu.actions()}
-    assert "Check for Updates" in actions
+    action_order = list(actions)
+    assert action_order[action_order.index("Check for Updates") + 1] == "Report Issue"
+    assert not actions["Report Issue"].icon().isNull()
     actions[f"About {NAME}"].trigger()
     assert session.expanded.tabs.currentWidget() is session.about_page
     assert session.about_page.version.text() == VERSION
@@ -408,20 +410,38 @@ def verify_branding(session, results, captures=None):
     assert session.about_page.document_group.title() == "Third-party Notices"
     assert "CPython" in session.about_page.browser.toPlainText()
     session.about_page.open_link("README.md")
-    assert "dynamic icon" in session.about_page.browser.toPlainText()
+    assert "Quick Start" in session.about_page.browser.toPlainText()
+    assert "Contact & Support" not in session.about_page.links.text()
+    assert "Third-party Notices" in session.about_page.links.text()
     session.about_page.open_link("CHANGELOG.md")
 
+    from unittest.mock import Mock, patch
+
     details = []
+    clipboard = Mock()
+    copied = []
 
     def inspect_details():
         dialog = session.qt.activeModalWidget()
         if dialog:
             details.extend(label.text() for label in dialog.findChildren(QLabel))
+            button = next(btn for btn in dialog.findChildren(QPushButton)
+                          if btn.text() == "Copy Application Information")
+            with patch("arm.about.QGuiApplication") as gui_application:
+                gui_application.clipboard.return_value = clipboard
+                button.click()
+            copied.extend(clipboard.setText.call_args.args)
             dialog.reject()
     QTimer.singleShot(0, inspect_details)
     view = next(button for button in session.about_page.findChildren(QPushButton) if button.text() == "Application Details")
     view.click()
     assert "Installation type" in details and "Source checkout" in details and VERSION in details
+    info = dict(line.split(": ", 1) for line in copied[0].splitlines())
+    assert set(info) == {"Application", "Version", "Release classification", "Operating system",
+                         "Processor architecture", "Distribution", "Framework"}
+    assert info["Application"] == NAME and info["Version"] == VERSION
+    assert info["Distribution"] == "Source checkout" and info["Framework"].startswith("Qt ")
+    assert str(session.about_page.data_root) not in copied[0]
 
     class BrowserTarget(QObject):
         @Slot(QUrl)
@@ -433,8 +453,13 @@ def verify_branding(session, results, captures=None):
     try:
         actions["Design Creations Website"].trigger()
         assert sink.destination == WEBSITE
-        session.about_page.open_link(SUPPORT_URL)
-        assert sink.destination == SUPPORT_URL
+        assert not session.about_page.report_issue.icon().isNull()
+        session.about_page.report_issue.click()
+        assert sink.destination == ISSUE_TRACKER_URL
+        sink.destination = ""
+        actions["Report Issue"].trigger()
+        assert sink.destination == ISSUE_TRACKER_URL
+        results["issue_reporting"] = True
     finally:
         QDesktopServices.unsetUrlHandler("https")
     if captures:

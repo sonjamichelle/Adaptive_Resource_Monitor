@@ -13,6 +13,8 @@ Anyone can browse the public [issue tracker](https://phantom.zapto.org/gitea/son
 
 Include the ARM version, Windows version and architecture, installation type, what you did, what you expected and what happened. When relevant, include approximate frequency, the affected resource and a workaround. See [Troubleshooting](README.md#troubleshooting) and [Remote Monitoring](REMOTE_MONITORING.md) for self-service help. If sign-in or account access prevents you from filing, use the [Design Creations contact form](https://www.designcreations.us/contact/index.php).
 
+When available in ARM, **Report Issue** in About or the tray opens the same public tracker in your browser. **About → Application Details → Copy Application Information** copies only the app name and version, classification, OS and architecture, distribution, and Qt version. Review and paste it yourself if useful.
+
 ## Share diagnostics safely
 
 Work from copies of logs or screenshots. Replace system names, account names, paths and addresses with generic values. Remove passwords, tokens, private keys, fingerprints, sensitive file paths, unrelated desktop content and other identifying details. Review the entire image or text before publishing. Keep original logs, settings, credential exports, trust files and full update receipts private.

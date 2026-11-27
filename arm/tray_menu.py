@@ -10,7 +10,8 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QActionGroup, QColor, QFont, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QStyle, QVBoxLayout, QWidget, QWidgetAction
 
-from .about import BrandImage
+from .about import ISSUE_ICON, BrandImage
+from .branding import open_issue_tracker
 from .config import TRAY_MODES
 from .machine_controls import MachineMenu
 from .version import NAME, VERSION
@@ -63,6 +64,7 @@ class TrayMenu(QMenu):
         self.addSeparator()
         self.action(self, f"About {NAME}", SP.SP_MessageBoxInformation, app.about)
         self.action(self, "Check for Updates", SP.SP_BrowserReload, app.check_for_updates)
+        self.action(self, "Report Issue", ISSUE_ICON, open_issue_tracker)
         self.action(self, "Design Creations Website", SP.SP_DriveNetIcon, app.open_website)
         self.addSeparator()
         self.action(self, f"Exit {NAME}", None, app.qt.quit)

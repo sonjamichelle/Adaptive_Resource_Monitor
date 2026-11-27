@@ -14,7 +14,7 @@ DEVELOPER = "Sonja M Thomas"
 PUBLISHER = "SLT Design Creations, LLC"
 COPYRIGHT = f"Copyright 2010-2026 {PUBLISHER}"
 WEBSITE = "https://www.designcreations.us/"
-SUPPORT_URL = "https://www.designcreations.us/contact/index.php"
+ISSUE_TRACKER_URL = "https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues"
 APP_MODEL_ID = "SLTDesignCreations.AdaptiveResourceMonitor"
 INSTALL_ID = "{FB4FA82E-8715-4AC8-BD23-48E33E998D1B}"
 DESCRIPTION = (
@@ -46,6 +46,13 @@ def document(name):
     if name == "THIRD_PARTY.md":
         return SOURCE_ROOT / "packaging" / name
     return SOURCE_ROOT / name
+
+
+def open_issue_tracker():
+    from PySide6.QtCore import QUrl
+    from PySide6.QtGui import QDesktopServices
+
+    return QDesktopServices.openUrl(QUrl(ISSUE_TRACKER_URL))
 
 
 def application_icon():

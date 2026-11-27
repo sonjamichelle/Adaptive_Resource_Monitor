@@ -15,16 +15,16 @@ import winreg
 from html import escape
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, Qt, QUrl
-from PySide6.QtGui import QDesktopServices, QFont, QPainter, QPixmap
+from PySide6.QtCore import QRectF, QSysInfo, Qt, QUrl, qVersion
+from PySide6.QtGui import QDesktopServices, QFont, QGuiApplication, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
-    QPushButton, QTextBrowser, QVBoxLayout, QWidget,
+    QPushButton, QStyle, QTextBrowser, QVBoxLayout, QWidget,
 )
 
 from .branding import (
     APPLICATION_IMAGE, COMPANY_LOGO, COPYRIGHT, DEVELOPER, DESCRIPTION, INSTALL_ID,
-    SUPPORT_URL, WEBSITE, asset, document,
+    WEBSITE, asset, document, open_issue_tracker,
 )
 from .software_license import LICENSE_LABEL, LicenseDialog
 from .update_release import LICENSE_FILE
@@ -33,6 +33,7 @@ from .update_ui import UpdatePanel
 from .window_geometry import WindowGeometry
 
 LOG = logging.getLogger(__name__)
+ISSUE_ICON = QStyle.StandardPixmap.SP_MessageBoxWarning
 DOCS = {
     "README.md": "README",
     "CHANGELOG.md": "Change Log",
@@ -148,6 +149,9 @@ class AboutPage(QWidget):
         view.clicked.connect(self.show_details)
         buttons = QHBoxLayout()
         buttons.addWidget(view)
+        self.report_issue = QPushButton(self.style().standardIcon(ISSUE_ICON), "Report Issue")
+        self.report_issue.clicked.connect(open_issue_tracker)
+        buttons.addWidget(self.report_issue)
         buttons.addStretch()
         details.addRow(buttons)
         layout.addWidget(information)
@@ -198,7 +202,6 @@ class AboutPage(QWidget):
         self.website.setText(link(WEBSITE, "www.designcreations.us", colors.accent))
         items = [link(name, name if name in ("README.md", "CHANGELOG.md") else label, colors.accent)
                  for name, label in self.documents.items()]
-        items.append(link(SUPPORT_URL, "Contact & Support", colors.accent))
         self.links.setText(" | ".join(items))
 
     def show_document(self, name):
@@ -238,6 +241,19 @@ class AboutPage(QWidget):
         elif QUrl(target).scheme() == "https":
             QDesktopServices.openUrl(QUrl(target))
 
+    def copy_application_information(self):
+        kind, _ = installation()
+        information = (
+            ("Application", NAME),
+            ("Version", VERSION),
+            ("Release classification", release_classification()),
+            ("Operating system", f"{QSysInfo.prettyProductName()} ({QSysInfo.kernelVersion()})"),
+            ("Processor architecture", QSysInfo.currentCpuArchitecture()),
+            ("Distribution", kind),
+            ("Framework", f"Qt {qVersion()}"),
+        )
+        QGuiApplication.clipboard().setText("\n".join(f"{label}: {value}" for label, value in information))
+
     def show_details(self):
         kind, directory = installation()
         build = build_data()
@@ -264,6 +280,8 @@ class AboutPage(QWidget):
         layout.addLayout(form)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(dialog.reject)
+        copy = buttons.addButton("Copy Application Information", QDialogButtonBox.ButtonRole.ActionRole)
+        copy.clicked.connect(self.copy_application_information)
         layout.addWidget(buttons)
         dialog.resize(620, dialog.sizeHint().height())
         dialog.window_geometry = WindowGeometry(dialog, self.data_root / "application-details-window.bin")

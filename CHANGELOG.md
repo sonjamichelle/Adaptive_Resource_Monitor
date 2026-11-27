@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.5.4_beta — 2026-11-26
+
+- Add a Report Issue button in About and a matching tray action below Check for Updates. Both open the public issue index in the default browser. [#1](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/1)
+- Add Copy Application Information to Application Details for an optional, sanitized clipboard summary.
+
 ## v0.8.4.4_beta — 2026-11-26
 
 - Bundle DC-ANCSA v1.0 in the Windows installer and portable ZIP. Interactive Setup shows the agreement, and About opens the complete license offline.
