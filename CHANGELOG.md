@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.2.3_beta — 2026-11-26
+
+- Drag machine headers to reorder sections in either monitor, or drag rows in Remote Targets. ARM saves the shared order as soon as a machine is dropped.
+- Choose any set of machines with the checkbox menu. The hover monitor, expanded monitor and tray menu share the saved selection. Hidden machines continue collecting telemetry.
+
 ## v0.6.2.3_beta — 2026-11-26
 
 - Show the installed version at the upper right of the hover monitor above its controls.

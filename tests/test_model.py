@@ -1,10 +1,12 @@
 import json
+from dataclasses import replace
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
-from arm.config import ConfigStore, Settings, Target, monitor_choices
+from arm.config import ConfigStore, MachineDisplay, Settings, Target, monitor_choices
 from arm.credentials import CredentialStore
 from arm.graphs import Dashboard, composite_samples
 from arm.model import (ALL, LOCAL, NETWORK, TOTAL, Availability, Connection, History, Status,
@@ -12,6 +14,69 @@ from arm.model import (ALL, LOCAL, NETWORK, TOTAL, Availability, Connection, His
 from arm.providers.gpu import engine_usage, gpu_metrics
 from arm.tray import HoverState, place_popup
 from PySide6.QtCore import QRect, QSize
+
+
+class MachineDisplayTests(unittest.TestCase):
+    def setUp(self):
+        self.cfg = Settings(hover_machine=ALL, tray_machine="c", targets=[
+            Target(identifier=identifier, name=identifier) for identifier in ("a", "b", "c", "d")
+        ])
+        self.display = MachineDisplay.from_legacy(self.cfg)
+
+    def test_legacy_monitor_preferences(self):
+        self.assertEqual(self.display.visible(self.cfg), (LOCAL, "a", "b", "c", "d"))
+        self.assertTrue(self.display.select_new)
+        for setting in ({"hover_machine": "b"}, {"default_machine": "b", "hover_machine": ""}):
+            cfg = replace(self.cfg, **setting)
+            display = MachineDisplay.from_legacy(cfg)
+            self.assertEqual(display.visible(cfg), ("b",))
+            self.assertFalse(display.select_new)
+        self.assertEqual(self.display.with_selection(self.cfg, set()).visible(self.cfg), ())
+
+    def test_order_moves_in_both_directions_and_keeps_hidden_slots(self):
+        display = self.display.with_selection(self.cfg, {LOCAL, "b", "d"})
+        first = display.move(self.cfg, display.visible(self.cfg), "d", 0)
+        self.assertEqual(first.order, ("d", "a", LOCAL, "c", "b"))
+        self.assertEqual(first.visible(self.cfg), ("d", LOCAL, "b"))
+        up = first.move(self.cfg, first.visible(self.cfg), "b", 1)
+        self.assertEqual(up.order, ("d", "a", "b", "c", LOCAL))
+        last = up.move(self.cfg, up.visible(self.cfg), "d", 2)
+        self.assertEqual(last.order, ("b", "a", LOCAL, "c", "d"))
+        self.assertEqual(last.with_selection(self.cfg, set(last.order)).visible(self.cfg), last.order)
+        self.assertEqual(self.cfg.tray_machine, "c")
+
+    def test_profile_lifecycle_preserves_display_intent(self):
+        checked = self.display.with_selection(self.cfg, {"b", "d"})
+        changed = replace(self.cfg, targets=[
+            Target(identifier="b", name="Renamed", enabled=False), self.cfg.targets[3],
+            Target(identifier="new", name="New"),
+        ])
+        self.assertEqual(checked.with_targets(changed).order, (LOCAL, "b", "d", "new"))
+        self.assertEqual(checked.with_targets(changed).selected, ("b", "d"))
+        self.assertEqual(checked.with_targets(changed).visible(changed), ("d",))
+        self.assertEqual(self.display.with_targets(changed).visible(changed), (LOCAL, "d", "new"))
+        enabled = replace(changed, targets=[replace(changed.targets[0], enabled=True), *changed.targets[1:]])
+        self.assertEqual(checked.with_targets(changed).with_targets(enabled).visible(enabled), ("b", "d"))
+
+    def test_atomic_commit_and_rollback_compatibility(self):
+        with tempfile.TemporaryDirectory(prefix="arm-display-test-") as temp:
+            store = ConfigStore(Path(temp) / "settings.json")
+            store.save(self.cfg)
+            order = ("d", "a", "b", LOCAL, "c")
+            saved = self.display.with_selection(self.cfg, {"b", "d"}, order)
+            store.save_display(saved)
+            initial = store.display_path.read_bytes()
+            fresh = ConfigStore(store.path)
+            self.assertEqual(fresh.load_display(fresh.load()), saved)
+            with patch("arm.config.replace_durable", side_effect=OSError("replacement failed")):
+                with self.assertRaisesRegex(OSError, "replacement failed"):
+                    store.save_display(self.display)
+            self.assertEqual(store.display_path.read_bytes(), initial)
+            self.assertEqual(list(Path(temp).glob("*.tmp")), [])
+            # A rolled-back executable can rewrite its existing settings file.
+            store.save(replace(self.cfg, hover_machine=LOCAL, hover_range=300))
+            self.assertEqual(fresh.load_display(fresh.load()), saved)
+            self.assertEqual(fresh.load().hover_range, 300)
 
 
 class ModelTests(unittest.TestCase):

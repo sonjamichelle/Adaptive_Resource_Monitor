@@ -1,7 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QRect, QSignalBlocker, Qt, QTimer
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox, QColorDialog, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox,
@@ -11,8 +11,9 @@ from PySide6.QtWidgets import (
 )
 
 from .config import TRAY_MODES
+from .machine_controls import MachineDrag
 from .model import DISK_MODES, LOCAL, NETWORK, RANGES, RESOURCES, Connection
-from .views import fill, interval_choices, machine_choices, plain
+from .views import fill, interval_choices, plain
 from .window_geometry import WindowGeometry
 
 
@@ -161,7 +162,6 @@ class SettingsDialog(QDialog):
         form.addRow("Start with Windows", self.startup)
         self.check(form, "Start minimized", "minimized")
         self.select(form, "Theme", "theme", [(value, value) for value in ("System", "Light", "Dark")])
-        self.select(form, "Default machine", "default_machine", machine_choices(self.app.dashboard))
         self.check(form, "Check for updates at startup", "update_startup")
         self.check(form, "Show Windows update notifications", "update_notifications")
         self.select(form, "Check for updates periodically", "update_interval",
@@ -172,7 +172,7 @@ class SettingsDialog(QDialog):
         form = self.section("Tray Icon")
         self.select(form, "Visualization", "mode", [(v, v) for v in TRAY_MODES])
         self.select(form, "Tray icon machine", "tray_machine",
-                    [("Local Machine", LOCAL)] + [(t.name, t.identifier) for t in self.cfg.targets])
+                    [(self.app.dashboard.name(machine), machine) for machine in self.app.dashboard.machines()])
         self.check(form, "Separate machine icons", "separate_tray_icons")
         self.select(form, "Refresh", "tray_refresh", interval_choices())
         self.select(form, "History range", "tray_range", [(v, k) for k, v in RANGES.items() if k <= 3600])
@@ -377,6 +377,7 @@ class ConnectionsDialog(QDialog):
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.cellDoubleClicked.connect(lambda *_: self.edit())
         self.info = plain()
@@ -397,8 +398,12 @@ class ConnectionsDialog(QDialog):
             row.addStretch()
             layout.addLayout(row)
         self.test_results = {}
+        self.identifiers = ()
+        self.drag = MachineDrag(self.table, self.row_rects, self.reorder)
+        self.drag.watch(self.table.viewport(), self.machine_at)
         self.table.itemSelectionChanged.connect(self.status_text)
         app.collectors.changed.connect(self.sync)
+        app.display_changed.connect(self.sync)
         app.collectors.test_finished.connect(self.test_finished)
         self.sync()
         self.window_geometry = WindowGeometry(self, app.root / "remote-targets-window.bin")
@@ -409,20 +414,37 @@ class ConnectionsDialog(QDialog):
         identifier = item.data(Qt.ItemDataRole.UserRole) if item else None
         return next((target for target in self.app.settings.targets if target.identifier == identifier), None)
 
+    def machine_at(self, point):
+        row = self.table.rowAt(point.y())
+        return self.identifiers[row] if 0 <= row < len(self.identifiers) else None
+
+    def row_rects(self):
+        return [(machine, QRect(0, self.table.rowViewportPosition(row), self.table.viewport().width(),
+                                self.table.rowHeight(row))) for row, machine in enumerate(self.identifiers)]
+
+    def reorder(self, source, index):
+        self.app.reorder_machines(self.identifiers, source, index, self)
+
     def sync(self):
         prior = self.selected()
-        self.table.setRowCount(len(self.app.settings.targets))
-        for row, target in enumerate(self.app.settings.targets):
-            state = self.app.dashboard.state(target.identifier)
-            for column, value in enumerate((target.name, f"{target.host}:{target.port}", target.method, state.value)):
-                item = QTableWidgetItem(value)
-                if column == 0:
-                    item.setData(Qt.ItemDataRole.UserRole, target.identifier)
-                self.table.setItem(row, column, item)
-            if prior and prior.identifier == target.identifier:
-                self.table.selectRow(row)
-        if self.table.currentRow() < 0 and self.table.rowCount():
-            self.table.selectRow(0)
+        targets = {target.identifier: target for target in self.app.settings.targets}
+        self.identifiers = tuple(machine for machine in self.app.dashboard.machines() if machine in targets)
+        with QSignalBlocker(self.table):
+            self.table.setRowCount(len(self.identifiers))
+            for row, machine in enumerate(self.identifiers):
+                target = targets[machine]
+                state = self.app.dashboard.state(machine)
+                for column, value in enumerate((target.name, f"{target.host}:{target.port}", target.method, state.value)):
+                    item = self.table.item(row, column)
+                    if item is None:
+                        item = QTableWidgetItem()
+                        self.table.setItem(row, column, item)
+                    item.setText(value)
+                    if column == 0:
+                        item.setData(Qt.ItemDataRole.UserRole, machine)
+            if self.identifiers:
+                selected = prior.identifier if prior else None
+                self.table.selectRow(self.identifiers.index(selected) if selected in self.identifiers else 0)
         self.status_text()
 
     def status_text(self):

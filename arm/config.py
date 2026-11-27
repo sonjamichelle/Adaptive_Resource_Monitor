@@ -4,6 +4,7 @@ import math
 import os
 from pathlib import Path
 from dataclasses import asdict, dataclass, field, fields
+from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
 from .model import ALL, DISK_MODES, INTERVALS, LOCAL, NETWORK, RANGES, RESOURCES
@@ -193,6 +194,50 @@ def monitor_choices(settings):
     return machine_ids(settings) | {ALL}
 
 
+@dataclass(frozen=True, slots=True)
+class MachineDisplay:
+    order: tuple[str, ...]
+    selected: tuple[str, ...]
+    select_new: bool = False
+
+    @staticmethod
+    def eligible(settings):
+        return {LOCAL, *(target.identifier for target in settings.targets if target.enabled)}
+
+    @classmethod
+    def from_legacy(cls, settings):
+        order = (LOCAL, *(target.identifier for target in settings.targets))
+        choice = next((item for item in (settings.hover_machine, settings.default_machine)
+                       if item in monitor_choices(settings)), LOCAL)
+        return cls(order, order if choice == ALL else (choice,)).with_targets(settings)
+
+    def visible(self, settings):
+        eligible = self.eligible(settings)
+        return tuple(machine for machine in self.order if machine in eligible and machine in self.selected)
+
+    def with_targets(self, settings):
+        configured = (LOCAL, *(target.identifier for target in settings.targets))
+        prior = tuple(machine for machine in self.order if machine in configured)
+        added = tuple(machine for machine in configured if machine not in prior)
+        order = prior + added
+        checked = set(self.selected) | (set(added) if self.select_new else set())
+        return self.with_selection(settings, checked, order)
+
+    def with_selection(self, settings, checked, order=None):
+        order = self.order if order is None else order
+        return MachineDisplay(order, tuple(machine for machine in order if machine in checked),
+                              self.eligible(settings).issubset(checked))
+
+    def move(self, settings, shown, source, index):
+        # Reorder only the visible slots. Hidden and disabled machines retain their positions.
+        moved = list(shown)
+        moved.remove(source)
+        moved.insert(index, source)
+        remaining = iter(moved)
+        order = tuple(next(remaining) if machine in shown else machine for machine in self.order)
+        return self.with_selection(settings, set(self.selected), order)
+
+
 def valid_color(value, default):
     if isinstance(value, str) and len(value) == 7 and value.startswith("#"):
         if all(char in "0123456789abcdef" for char in value[1:].lower()):
@@ -203,6 +248,7 @@ def valid_color(value, default):
 class ConfigStore:
     def __init__(self, path):
         self.path = Path(path)
+        self.display_path = self.path.with_name("machine-display.json")
 
     def load(self):
         if not self.path.is_file():
@@ -223,3 +269,52 @@ class ConfigStore:
             temporary.replace(self.path)
         finally:
             temporary.unlink(missing_ok=True)
+
+    def load_display(self, settings):
+        try:
+            data = json.loads(self.display_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                saved = MachineDisplay(tuple(strings(data.get("order"))),
+                                       tuple(strings(data.get("selected"))), data.get("select_new") is True)
+                return saved.with_targets(settings)
+        except FileNotFoundError:
+            pass
+        except (OSError, ValueError):
+            LOG.warning("Could not load machine display preferences", exc_info=True)
+        return MachineDisplay.from_legacy(settings)
+
+    def save_display(self, display):
+        # Earlier releases can still save settings.json after an update rollback.
+        # Keep these preferences in their own atomic file under the same settings root.
+        path = self.display_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        stream = NamedTemporaryFile(dir=path.parent, prefix=path.name + ".", suffix=".tmp", delete=False)
+        temporary = Path(stream.name)
+        try:
+            with stream:
+                stream.write((json.dumps(asdict(display), indent=2) + "\n").encode("utf-8"))
+                stream.flush()
+                os.fsync(stream.fileno())
+            replace_durable(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
+def replace_durable(temporary, path):
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        move = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+        move.argtypes = (wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD)
+        move.restype = wintypes.BOOL
+        replace_existing, write_through = 0x1, 0x8
+        if not move(str(temporary), str(path), replace_existing | write_through):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return
+    temporary.replace(path)
+    directory = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)

@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QStyle, QVBoxLayout, Q
 
 from .about import BrandImage
 from .config import TRAY_MODES
-from .model import ALL, LOCAL
+from .machine_controls import MachineMenu
 from .version import NAME, VERSION
 
 SP = QStyle.StandardPixmap
@@ -30,14 +30,10 @@ class TrayMenu(QMenu):
         self.pin.setCheckable(True)
 
         self.addSeparator()
-        machines = self.submenu("Monitor Machine", SP.SP_ComputerIcon)
-        self.machine_group = QActionGroup(self)
-        self.machine_group.setExclusive(True)
-        self.local = self.machine_action(machines, "Local Machine", LOCAL)
-        self.remote = machines.addMenu(self.standard_icon(SP.SP_DriveNetIcon), "Configured Remote Machines")
-        self.all = self.machine_action(machines, "All Systems", ALL)
-        self.remote_entries = {}
-        self.targets = None
+        self.machines = MachineMenu(app.dashboard, app.toggle_machine, self)
+        self.machines.setTitle("Monitor Machine")
+        self.machines.setIcon(self.standard_icon(SP.SP_ComputerIcon))
+        self.addMenu(self.machines)
 
         display = self.submenu("Tray Display", SP.SP_FileDialogDetailedView)
         mode_group = QActionGroup(self)
@@ -101,25 +97,9 @@ class TrayMenu(QMenu):
     def submenu(self, title, icon):
         return self.addMenu(self.standard_icon(icon), title)
 
-    def machine_action(self, menu, name, machine):
-        action = self.action(menu, name, None, lambda: self.app.select_machine(machine, self.scope))
-        action.setCheckable(True)
-        self.machine_group.addAction(action)
-        return action
-
     def refresh(self):
         app = self.app
-        targets = [(t.identifier, t.name, app.dashboard.state(t.identifier).value) for t in app.settings.targets]
-        if targets != self.targets:
-            self.targets = targets
-            self.remote.clear()
-            self.remote_entries = {
-                machine: self.machine_action(self.remote, f"{name.replace('&', '&&')} · {status}", machine)
-                for machine, name, status in targets
-            }
-            self.remote.menuAction().setVisible(bool(targets))
-        choices = {LOCAL: self.local, ALL: self.all, **self.remote_entries}
-        choices[app.monitor_machine()].setChecked(True)
+        self.machines.sync()
         self.modes[app.settings.mode].setChecked(True)
         self.pin.setChecked(app.popup.pinned and app.hover.anchor == self.scope)
         self.start.setChecked(app.startup_enabled())

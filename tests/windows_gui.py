@@ -362,8 +362,8 @@ def verify_branding(session, results, captures=None):
     results["transparent_ico_frames"] = list(ICON_SIZES)
 
     menu = session.menus[LOCAL]
-    assert menu.version.text() == VERSION and menu.local.isChecked()
-    assert not menu.remote.menuAction().isVisible()
+    assert menu.version.text() == VERSION and menu.machines.entries[LOCAL].isChecked()
+    assert tuple(menu.machines.entries) == (LOCAL,)
     actions = {action.text(): action for action in menu.actions()}
     assert "Check for Updates" in actions
     actions[f"About {NAME}"].trigger()
@@ -419,13 +419,21 @@ def verify_branding(session, results, captures=None):
         menu.hide()
     actions["Resource History"].trigger()
     assert session.expanded.monitor_visible and session.expanded.span == 3600
-    menu.all.trigger()
-    assert session.popup.selected_machine == ALL and menu.all.isChecked()
-    menu.local.trigger()
-    assert session.popup.selected_machine == LOCAL
+    menu.machines.master.click()
+    assert session.popup.displayed == () and not menu.machines.master.isChecked()
+    menu.machines.entries[LOCAL].click()
+    assert session.popup.displayed == (LOCAL,)
     session.popup.hide()
     session.expanded.close()
     results["verified_about_and_tray_actions"] = True
+
+
+def choose_display(session, machine):
+    from arm.model import ALL
+
+    display = session.dashboard.machine_display
+    checked = set(display.order) if machine == ALL else {machine}
+    session.save_display(display.with_selection(session.settings, checked), session.popup)
 
 
 def verify_update_notices(session, wait_for, results, captures):
@@ -471,11 +479,11 @@ def verify_update_notices(session, wait_for, results, captures):
         assert hover.popup_size().height() > initial_size.height()
         assert hover.update_banner.label.text() == available
         capture(hover, "update-hover.png")
-        session.select_machine(ALL, LOCAL)
+        choose_display(session, ALL)
         session.hover.pin(True, LOCAL)
-        assert hover.update_banner.isVisible() and hover.selected_machine == ALL
+        assert hover.update_banner.isVisible() and hover.displayed == tuple(session.dashboard.monitored())
         session.hover.pin(False)
-        session.select_machine(LOCAL, LOCAL)
+        choose_display(session, LOCAL)
         hover.hide()
         session.open_expanded()
         assert expanded.update_banner.isVisible() and expanded.monitor_visible
@@ -516,6 +524,7 @@ def verify_hover_version(session, remote, results, captures):
     from arm.version import VERSION
 
     original = session.settings
+    display = session.dashboard.machine_display
     hover = session.popup
     scale = round(hover.devicePixelRatioF() * 100)
     modes = (
@@ -529,13 +538,15 @@ def verify_hover_version(session, remote, results, captures):
             session.apply(replace(original, theme=theme))
             for name, selection, anchor, pinned in modes:
                 session.hover.pin(False)
-                session.select_machine(selection, anchor)
+                choose_display(session, selection)
+                session.hover.show(anchor)
                 session.hover.pin(pinned, anchor)
                 session.qt.processEvents()
                 label = hover.version_label
                 rect = label.geometry()
                 assert hover.isVisible() and hover.pinned == pinned
-                assert hover.selected_machine == selection and session.hover.anchor == anchor
+                expected = tuple(session.dashboard.monitored()) if selection == ALL else (selection,)
+                assert hover.displayed == expected and session.hover.anchor == anchor
                 assert label.isVisible() and label.text() == VERSION
                 assert rect.bottom() < hover.machine.geometry().top()
                 assert rect.right() == hover.width() - hover.layout().contentsMargins().right() - 1
@@ -547,8 +558,176 @@ def verify_hover_version(session, remote, results, captures):
         session.hover.pin(False)
         hover.hide()
         session.apply(original)
+        session.save_display(display, hover)
     results["hover_version"] = {"version": VERSION, "scale_percent": scale,
                                 "themes": ["Light", "Dark"], "views": [row[0] for row in modes]}
+
+
+def verify_machine_display(session, wait_for, results, captures):
+    from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
+    from PySide6.QtGui import QKeyEvent, QMouseEvent
+    from PySide6.QtTest import QTest
+    from arm.dialogs import ConnectionsDialog
+    from arm.model import ALL, LOCAL, TOTAL, Connection
+    from unittest.mock import patch
+
+    app, hover, expanded = session.qt, session.popup, session.expanded
+    local, rain, phantom, lamp, phantomnet = session.dashboard.machines()
+    tray = session.menus[session.scopes()[0]].machines
+    menu = hover.machine.checklist
+    history = session.collectors.history
+    workers = dict(session.collectors.workers)
+    left, released = Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton
+
+    def capture(widget, filename):
+        app.processEvents()
+        if captures:
+            QTest.qWait(100)
+            capture_native_window(int(widget.winId()), captures / filename)
+
+    def pointer(widget, kind, point):
+        button = released if kind == QEvent.Type.MouseMove else left
+        buttons = released if kind == QEvent.Type.MouseButtonRelease else left
+        event = QMouseEvent(kind, QPointF(widget.mapFromGlobal(point)), QPointF(point), button, buttons,
+                            Qt.KeyboardModifier.NoModifier)
+        app.sendEvent(widget, event)
+        app.processEvents()
+
+    def drag_to(drag, widget, start, end, cancel=False, scroll_to_end=False):
+        pointer(widget, QEvent.Type.MouseButtonPress, start)
+        pointer(widget, QEvent.Type.MouseMove, end)
+        assert drag.active and drag.line.isVisible()
+        if scroll_to_end:
+            bar = drag.scroll.verticalScrollBar()
+            wait_for(lambda: bar.value() == bar.maximum())
+        if cancel:
+            app.sendEvent(widget, QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier))
+        pointer(widget, QEvent.Type.MouseButtonRelease, end)
+        assert not drag.active and not drag.line.isVisible()
+
+    def persisted():
+        return session.store.load_display(session.store.load())
+
+    choose_display(session, ALL)
+    session.hover.show(local)
+    menu.popup(hover.machine.mapToGlobal(hover.machine.rect().bottomLeft()))
+    app.processEvents()
+    assert menu.isVisible() and hover.interaction_active
+    assert menu.master.checkState() == Qt.CheckState.Checked
+    combos = (
+        ("none", set(), "No Systems Selected"),
+        ("rain", {rain}, "Rain"),
+        ("rain-phantom", {rain, phantom}, "2 Systems Selected"),
+        ("lamp-phantomnet", {lamp, phantomnet}, "2 Systems Selected"),
+        ("local-rain-phantomnet", {local, rain, phantomnet}, "3 Systems Selected"),
+        ("all", {local, rain, phantom, lamp, phantomnet}, "All Systems"),
+    )
+    for name, wanted, label in combos:
+        before = set(hover.displayed)
+        if name in ("none", "all"):
+            QTest.mouseClick(menu.master, left)
+            assert menu.isVisible() and hover.isVisible(), (name, menu.isVisible(), hover.isVisible())
+        else:
+            for machine in sorted(before ^ wanted):
+                QTest.mouseClick(menu.entries[machine], left)
+                assert menu.isVisible() and hover.isVisible(), (name, menu.isVisible(), hover.isVisible())
+                assert persisted().visible(session.settings) == hover.displayed == expanded.displayed
+        checked = Qt.CheckState.Unchecked if not wanted else (
+            Qt.CheckState.Checked if len(wanted) == 5 else Qt.CheckState.PartiallyChecked)
+        assert set(hover.displayed) == wanted and menu.master.checkState() == tray.master.checkState() == checked
+        assert hover.empty.isVisible() == (not wanted)
+        assert hover.single.isVisible() == (len(wanted) == 1)
+        assert hover.simultaneous.isVisible() == (len(wanted) > 1)
+        assert hover.machine.text() == label
+        if name == "rain":
+            observed = history.latest(phantom, TOTAL, "ram.util")
+            assert observed is not None
+            wait_for(lambda: history.latest(phantom, TOTAL, "ram.util").timestamp > observed.timestamp)
+        if name == "rain-phantom":
+            assert history.since(phantom, TOTAL, "ram.util", 0)[-2].timestamp <= observed.timestamp
+            assert any(value is not None for _, value in hover.sections[phantom].cards["ram"].plot.data[0][0][0])
+            capture(menu, "machine-checkbox-dropdown.png")
+        capture(hover, f"machine-selection-{name}.png")
+    app.sendEvent(menu, QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier))
+    assert not menu.isVisible()
+    menu.popup(hover.machine.mapToGlobal(hover.machine.rect().bottomLeft()))
+    app.processEvents()
+    pointer(menu, QEvent.Type.MouseButtonPress, menu.mapToGlobal(QPoint(-25, -25)))
+    assert not menu.isVisible()
+    app.processEvents()
+
+    viewport = hover.simultaneous.viewport()
+    local_header = hover.sections[local].title
+    section_objects = dict(hover.sections)
+    viewport_origin = lambda: viewport.mapToGlobal(QPoint(viewport.width() // 2, 3))
+    point = lambda w: w.mapToGlobal(w.rect().center())
+    bottom = viewport.mapToGlobal(QPoint(viewport.width() // 2, viewport.height() - 3))
+    before = persisted()
+    drag_to(hover.drag, local_header, point(local_header), bottom, cancel=True)
+    assert persisted() == before
+    drag_to(hover.drag, local_header, point(local_header), bottom, scroll_to_end=True)
+    assert hover.displayed == (rain, phantom, lamp, phantomnet, local)
+    assert persisted().order == hover.displayed and hover.sections == section_objects
+    assert tuple(tray.entries) == hover.displayed
+    session.set_pin(True)
+    first_header = hover.sections[rain].title
+    last_header = hover.sections[local].title
+    drag_to(hover.drag, last_header, point(last_header), viewport_origin())
+    assert hover.displayed.index(local) < 4 and hover.pinned
+    hover.simultaneous.ensureWidgetVisible(first_header, 0, 0)
+    app.processEvents()
+    session.set_pin(False)
+    session.open_expanded()
+    view = expanded.simultaneous.viewport()
+    start = expanded.displayed[1]
+    top = view.mapToGlobal(QPoint(view.width() // 2, 3))
+    drag_to(expanded.drag, expanded.sections[start].title, point(expanded.sections[start].title), top)
+    assert expanded.displayed[0] == start and expanded.displayed == hover.displayed
+    capture(expanded, "machine-order-expanded.png")
+    manager = ConnectionsDialog(session)
+    manager.show()
+    app.processEvents()
+    try:
+        remote, first = manager.identifiers[-1], manager.identifiers[0]
+        rows = dict(manager.row_rects())
+        viewport = manager.table.viewport()
+        local_slot = hover.displayed.index(local)
+        drag_to(manager.drag, viewport, viewport.mapToGlobal(rows[remote].center()),
+                viewport.mapToGlobal(rows[first].topLeft() + QPoint(15, 1)))
+        assert manager.identifiers[0] == remote and hover.displayed.index(local) == local_slot
+        assert manager.identifiers == tuple(machine for machine in hover.displayed if machine != local)
+        capture(manager, "machine-order-remote-targets.png")
+    finally:
+        manager.close()
+        manager.deleteLater()
+
+    tray.entries[phantom].click()
+    assert phantom not in hover.displayed and phantom not in expanded.displayed
+    assert menu.entries[phantom].checkState() == Qt.CheckState.Unchecked
+    tray.entries[phantom].click()
+    assert persisted().visible(session.settings) == hover.displayed
+    assert session.collectors.history is history and session.collectors.workers == workers
+    assert all(session.dashboard.state(machine) == Connection.ONLINE for machine in hover.displayed)
+    before = persisted()
+    with patch.object(session.store, "save_display", side_effect=OSError("Fixture write failed")), \
+            patch("arm.application.QMessageBox.warning") as shown, patch("arm.application.LOG.exception"):
+        tray.entries[phantom].click()
+        shown.assert_called_once()
+        assert tray.entries[phantom].isChecked() and persisted() == before
+    expanded.close()
+    hover.hide()
+    session.hover.show(local)
+    assert hover.displayed == before.visible(session.settings)
+    hover.simultaneous.verticalScrollBar().setValue(0)
+    capture(hover, "machine-order-hover.png")
+    hover.hide()
+    results["machine_display"] = {
+        "checkbox_combinations": [name for name, _, _ in combos],
+        "shared_drag_interfaces": ["hover", "expanded", "Remote Targets"],
+        "final_order": [session.dashboard.name(machine) for machine in before.order],
+        "saved_before_close": True, "cancelled_drag_and_failed_write_retained_order": True,
+        "unchanged_collectors_and_hidden_history": True,
+    }
 
 
 def evaluate_app(work, results, short=False, captures=None):
@@ -681,7 +860,7 @@ def evaluate_app(work, results, short=False, captures=None):
         session.popup.pin.click()
         assert not session.popup.pinned
         session.popup.hide()
-        session.open_expanded(LOCAL)
+        session.open_expanded()
         assert session.expanded.isVisible() and session.expanded.table.rowCount() > 20
         assert session.expanded.device.count() > 10
         assert app.primaryScreen().availableGeometry().contains(session.popup.frameGeometry())
@@ -714,11 +893,11 @@ def evaluate_app(work, results, short=False, captures=None):
                     raise AssertionError(f"SSH fixture {i}: {server.connections} TCP sessions, "
                                          f"{len(server.commands)} commands, {server.samples} frames, "
                                          f"{session.dashboard.state(target.identifier)}") from exc
-                assert "Connected" in menu.remote_entries[target.identifier].text()
-                menu.remote_entries[target.identifier].trigger()
-                assert session.popup.selected_machine == target.identifier
+                choose_display(session, target.identifier)
+                assert menu.machines.entries[target.identifier].isChecked()
+                assert session.popup.displayed == (target.identifier,)
                 assert session.scopes() == [LOCAL]
-                menu.local.trigger()
+                choose_display(session, LOCAL)
                 session.popup.hide()
                 if i == 1 and not short:
                     measure("one_loopback_ssh")
@@ -732,20 +911,21 @@ def evaluate_app(work, results, short=False, captures=None):
             tray_machine.setCurrentIndex(tray_machine.findData(primary))
             prefs.save()
             prefs.deleteLater()
-            assert session.scopes() == [primary] and session.popup.selected_machine == LOCAL
+            assert session.scopes() == [primary] and session.popup.displayed == (LOCAL,)
             menu = session.menus[primary]
-            for select, expected in ((menu.all, ALL), (menu.remote_entries[other], other), (menu.local, LOCAL)):
-                select.trigger()
+            for choice in (ALL, other, LOCAL):
+                choose_display(session, choice)
+                expected = tuple(session.dashboard.monitored()) if choice == ALL else (choice,)
                 with patch("arm.application.tray_icon", wraps=tray_icon) as draw:
                     session.render()
                     assert [call.args[1] for call in draw.call_args_list] == [primary]
-                assert session.popup.selected_machine == session.expanded.selected_machine == expected
-                assert select.isChecked()
-                if expected == ALL:
+                assert session.popup.displayed == session.expanded.displayed == expected
+                assert all(menu.machines.entries[machine].isChecked() for machine in expected)
+                if choice == ALL:
                     for view in (session.popup, session.expanded):
                         assert set(view.sections) == {LOCAL, primary, other}
                         assert all(set(section.cards) == set(RESOURCES) for section in view.sections.values())
-            menu.all.trigger()
+            menu.machines.master.click()
             history = session.collectors.history
             wait_for(lambda: all(
                 (reading := history.latest(machine, TOTAL, direction)) and reading.valid and reading.value > 0
@@ -762,12 +942,13 @@ def evaluate_app(work, results, short=False, captures=None):
             session.popup.interval.setCurrentIndex(session.popup.interval.findData(300))
             session.popup.hide()
             menu.defaultAction().trigger()
-            assert session.expanded.selected_machine == ALL
+            assert session.expanded.displayed == tuple(session.dashboard.monitored())
             session.expanded.close()
             session.hover.show(primary)
-            assert session.popup.selected_machine == ALL and session.popup.span == 300
+            assert session.popup.displayed == tuple(session.dashboard.monitored()) and session.popup.span == 300
+            assert session.store.load_display(session.settings).select_new
             saved = ConfigStore(root / "settings.json").load()
-            assert (saved.hover_machine, saved.hover_range, saved.tray_machine) == (ALL, 300, primary)
+            assert (saved.hover_range, saved.tray_machine) == (300, primary)
             session.popup.hide()
             session.apply(replace(session.settings, separate_tray_icons=True, persistent=True))
             assert set(session.icons) == {LOCAL, *(target.identifier for target in targets)}
@@ -778,17 +959,32 @@ def evaluate_app(work, results, short=False, captures=None):
                 assert draw.call_count == 3
             results["independent_tray_and_monitor"] = "Local plus two SSH targets, six graphs each, three independent icon sources"
             results["loopback_frame_counts"] = [server.samples for server in servers]
+            for target, name in zip(targets, ("Rain", "Phantom")):
+                session.save_target(replace(target, name=name), "", False)
+            for name in ("LAMP", "PhantomNet"):
+                server = stack.enter_context(Fixture())
+                target = Target(name=name, host="127.0.0.1", port=server.port, username="tester", interval=1)
+                update_host_key(session.hosts, f"[127.0.0.1]:{server.port}", server.key)
+                session.save_target(target, SECRET, False)
+                targets.append(target)
+            wait_for(lambda: all(session.dashboard.state(machine) == Connection.ONLINE and
+                                 session.collectors.history.latest(machine, TOTAL, "ram.util")
+                                 for machine in session.dashboard.monitored()), 15)
+            verify_machine_display(session, wait_for, results, captures)
+            for target in targets[2:]:
+                session.remove_target(next(t for t in session.settings.targets if t.identifier == target.identifier))
+            targets = targets[:2]
             for target in targets:
                 session.collectors.disconnect(target.identifier)
             assert all(session.dashboard.state(t.identifier) == Connection.OFFLINE for t in targets)
-            assert session.popup.selected_machine == ALL
+            assert session.popup.displayed == tuple(session.dashboard.monitored())
             session.apply(replace(session.settings, separate_tray_icons=False, persistent=False))
             if not short:
                 measure("disconnected_remotes")
             assert set(session.icons) == {primary}
             for target in list(session.settings.targets):
                 session.remove_target(target)
-            assert set(session.icons) == {LOCAL} and session.popup.selected_machine == ALL
+            assert set(session.icons) == {LOCAL} and session.popup.displayed == (LOCAL,)
         exit_action = next(action for action in next(iter(session.menus.values())).actions()
                            if action.text().startswith("Exit Adaptive Resource Monitor"))
         QTimer.singleShot(0, exit_action.trigger)
@@ -803,7 +999,7 @@ def evaluate_app(work, results, short=False, captures=None):
     restart_root = work / "restart"
     store = ConfigStore(restart_root / "settings.json")
     stored_targets = [replace(target, enabled=False, credential="test-reference") for target in saved.targets]
-    store.save(replace(saved, targets=stored_targets))
+    store.save(replace(saved, targets=stored_targets, hover_machine=ALL))
     for legacy in (False, True):
         if legacy:
             source = json.loads(store.path.read_text(encoding="utf-8"))
@@ -821,7 +1017,8 @@ def evaluate_app(work, results, short=False, captures=None):
             reopened = Application(app, restart_root)
             try:
                 assert reopened.scopes() == [primary]
-                assert reopened.popup.selected_machine == reopened.expanded.selected_machine == ALL
+                assert reopened.popup.displayed == reopened.expanded.displayed == (LOCAL,)
+                assert reopened.dashboard.machine_display.selected == (LOCAL, primary, other)
                 assert reopened.popup.span == 300 and not reopened.popup.pinned
                 assert reopened.settings.targets == stored_targets
                 panel = reopened.about_page.updates
@@ -833,6 +1030,54 @@ def evaluate_app(work, results, short=False, captures=None):
         app.processEvents()
     results["restored_monitor_and_tray"] = "New and legacy settings restored All Systems at five minutes with a separate tray source"
     results["startup_update_and_periodic_timer"] = True
+    verify_abrupt_display_restart(work, results)
+
+
+def verify_abrupt_display_restart(work, results):
+    from arm.config import ConfigStore, Settings, Target
+    from arm.model import ALL
+
+    root = work / "abrupt-display"
+    ConfigStore(root / "settings.json").save(Settings(
+        hover_machine=ALL, targets=[Target(identifier="qa-remote", name="QA profile", os_type="Windows")]
+    ))
+    argv = [sys.executable, str(Path(__file__).resolve()), "--desktop", results["desktop"], "--work", str(root)]
+    with subprocess.Popen([*argv, "--abrupt-display", "write"], creationflags=subprocess.CREATE_NO_WINDOW) as instance:
+        try:
+            deadline = monotonic() + 20
+            while not (root / "saved").is_file():
+                assert instance.poll() is None and monotonic() < deadline, "Isolated display test did not save"
+                sleep(.05)
+        finally:
+            instance.kill()
+            instance.wait(8)
+    assert instance.returncode != 0
+    result = subprocess.run([*argv, "--abrupt-display", "inspect"], timeout=30, creationflags=subprocess.CREATE_NO_WINDOW)
+    assert result.returncode == 0, f"Isolated restart failed with exit {result.returncode}"
+    results["forced_termination_restored_display"] = True
+
+
+def abrupt_display_child(args):
+    from PySide6.QtWidgets import QApplication
+    from arm.application import Application
+    from arm.model import LOCAL
+
+    verify_desktop(args.desktop)
+    app = QApplication([])
+    assert app.platformName() == "windows"
+    session = Application(app, args.work)
+    if args.abrupt_display == "write":
+        session.reorder_machines(session.popup.displayed, LOCAL, 1, session.popup)
+        session.popup.machine.checklist.entries[LOCAL].click()
+        assert session.popup.displayed == ("qa-remote",)
+        (args.work / "saved").touch()
+        app.exec()
+        raise RuntimeError("The isolated process was expected to be terminated")
+    try:
+        assert session.dashboard.machines() == ("qa-remote", LOCAL)
+        assert session.popup.displayed == session.expanded.displayed == ("qa-remote",)
+    finally:
+        session.close()
 
 
 def child(args):
@@ -893,7 +1138,11 @@ if __name__ == "__main__":
     parser.add_argument("--upgrade-from", type=Path)
     parser.add_argument("--captures", type=Path)
     parser.add_argument("--short", action="store_true")
+    parser.add_argument("--abrupt-display", choices=("write", "inspect"))
     args = parser.parse_args()
+    if args.abrupt_display:
+        abrupt_display_child(args)
+        raise SystemExit(0)
     if args.desktop:
         raise SystemExit(child(args))
     raise SystemExit(parent(args))

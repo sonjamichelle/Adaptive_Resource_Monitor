@@ -5,6 +5,7 @@ from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
+from .config import MachineDisplay
 from .model import ALL, Connection, LOCAL, NETWORK, RESOURCES, TOTAL, current_reading, graph_scale, normalized
 
 METRICS = {kind: d[2] for kind, d in RESOURCES.items()}
@@ -96,8 +97,9 @@ def stroke(painter, rect, points, now, span, gap, color, width=1.3):
 
 
 class Dashboard:
-    def __init__(self, collectors):
+    def __init__(self, collectors, machine_display=None):
         self.collectors = collectors
+        self.machine_display = machine_display or MachineDisplay.from_legacy(collectors.settings)
         self.archived = {}
 
     @property
@@ -112,10 +114,11 @@ class Dashboard:
         return next((t.name for t in self.settings.targets if t.identifier == machine), "Unknown machine")
 
     def machines(self):
-        return [LOCAL] + [target.identifier for target in self.settings.targets]
+        return self.machine_display.order
 
     def monitored(self):
-        return [LOCAL] + [target.identifier for target in self.settings.targets if target.enabled]
+        eligible = MachineDisplay.eligible(self.settings)
+        return [machine for machine in self.machines() if machine in eligible]
 
     def state(self, machine):
         status = self.collectors.statuses.get(machine)

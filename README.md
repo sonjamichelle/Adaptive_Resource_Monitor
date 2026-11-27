@@ -19,12 +19,17 @@ machine for the primary icon. It defaults to Local Machine. Enable Separate
 machine icons to also show icons for Local Machine and remote targets with
 their tray option enabled.
 
-Monitor Machine selects the history shown in the hover and expanded
-monitors. All Systems shows six independent graphs for every enabled
-machine. Changing the monitor selection leaves the tray icon source as
-configured in Settings. Hover machine and history selections save as you
-change them. Network IN and OUT have configurable colors and share one
-throughput scale per machine.
+Use the machine dropdown in either monitor or the tray's **Monitor Machine**
+submenu to check the systems you want to display. The **All Systems** checkbox
+selects or clears all enabled machines. With several machines selected, the
+monitor shows separate graph sections in your saved order. Hidden machines
+continue collecting telemetry. The primary tray icon keeps its configured
+machine.
+
+Drag machine headers in either monitor or rows in **Manage Remote Targets**
+to change the shared order. Press Escape to cancel a drag. ARM saves each
+drop and checkbox change immediately. Network IN and OUT have configurable
+colors and share one throughput scale per machine.
 
 Open the About tab from the monitor
 window or tray menu for build information, version history and support links.

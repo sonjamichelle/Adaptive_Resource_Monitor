@@ -1,5 +1,22 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.8.2.3_beta — Machine ordering and display selection
+
+Two Feature increments combine drag-and-drop machine ordering and checkbox
+selection in one Beta. The machine order and selection use stable profile
+identifiers and one immediately saved file in the ARM settings directory.
+The file is flushed before atomic replacement. A Windows write-through move
+commits the new file. It remains available if an earlier application version
+rewrites its settings during rollback. The original single-machine or All
+Systems preference supplies the initial selection and order.
+
+The hover and expanded monitors and tray submenu share the same checkbox
+selection. Remote Targets and both monitors share the same order. Sorting a
+subset changes its visible slots and preserves the positions of hidden
+machines. The save completes before a new selection or order is displayed.
+Sorting and visibility changes leave telemetry providers, SSH sessions,
+history and the primary tray source in place.
+
 ## v0.6.2.3_beta — Hover monitor version and window placement
 
 Production v0.6.2.2_beta was built from `5e8ea74be3fd94156bdc7a0810cfcc8eaac739f0`.
@@ -20,6 +37,48 @@ icon. Both themes were checked at effective 100% and 150% scaling using
 Qt's per-process scale factor on private Windows desktops. A native geometry
 check confirmed exact positioning on reopening and recovery of an off-screen
 About window on the current display.
+
+Build and Archive #13 built commit
+`31f0b430fbe05eafcbef87a7f6cf39c07aa9030e`. The native package checks
+and Ed25519 verification passed. Publish Release #11 published the pinned
+archive. All seven anonymous downloads matched the archive by size and
+SHA-256. The signed manifest, exact version, x64 packages, Gitea tag, and
+release notes were independently verified. The installed v0.6.2.2_beta
+updater code found the release eligible without a verification error.
+[Build #13](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/13/)
+[Publication #11](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/11/)
+[Public release](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.6.2.3_beta)
+
+| Windows x64 package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Installer | 60,172,627 | `ef64b5a98194c35a4dac15b733dcf1206ad680dfb37a3e3963667da4a9a14c46` |
+| Portable ZIP | 74,687,810 | `7e7cfe7bfd0752896da4216d2a1ed02539e636e01529b27541ada446a9a3dbe1` |
+
+### Production acceptance
+
+The installed updater reported the verified release and downloaded the
+60,172,627-byte installer with the expected SHA-256. Transaction
+`ec8569b9bdf0454aa9229283796e6d1a` captured independent preparation and
+installation progress. ARM acknowledged shutdown, exited with code 0
+before the installer log was created, and automatically restarted in the
+same Windows user session and privilege level. The completion receipt and
+success notification were saved. One ARM instance remained and the updater
+exited. All 298 installed files matched the archived build.
+
+Local Machine, Rain, Phantom, LAMP and PhantomNet resumed monitoring.
+The production Explorer hover screenshot shows all five systems,
+independent network IN and OUT graphs, and `v0.6.2.3_beta` at the upper
+right. Settings and pinned SSH host keys matched their pre-upgrade hashes.
+Saved credentials remained accessible and automatic checks remained off.
+Persistent disk recording was already off. The shipped client verified
+that the public release matched the installed version.
+
+The signed packages remain under `release/v0.6.2.3_beta/`. Native
+screenshots are under `evidence/v0.6.2.3_beta-native/`. The live screenshot,
+installer log, process verification and completion receipt are retained
+under `evidence/v0.6.2.3_beta-production/`. The independent anonymous
+verification removed 134,862,477 bytes of temporary downloads. Jenkins
+removed its staging and package-test data and cleaned both job workspaces.
 
 ## v0.6.2.2_beta — Beta promotion
 

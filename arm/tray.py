@@ -92,8 +92,7 @@ class HoverMonitor:
                 hovered = machine
                 break
         over = self.popup.isVisible() and (self.popup.frameGeometry().contains(cursor)
-                                           or self.popup.interval.view().isVisible()
-                                           or self.popup.machine.view().isVisible())
+                                           or self.popup.interaction_active)
         cfg = self.dashboard.settings
         visible = self.popup.isVisible() and (self.anchor == hovered or hovered is None or over)
         action = self.state.update(monotonic(), hovered, over, visible, self.popup.pinned,
@@ -126,10 +125,22 @@ class HoverMonitor:
         self.reposition()
 
     def reposition(self):
-        if self.location is not None:
+        if self.location is not None and not self.popup.drag.active:
             screen, rect = self.location
-            position = place_popup(screen.availableGeometry(), rect, self.popup.popup_size())
+            area = screen.availableGeometry()
+            position = place_popup(area, rect, self.popup.popup_size())
+            menu = self.popup.machine.checklist
+            if menu.isVisible():
+                # Keep the menu anchored to the control during successive clicks.
+                before = self.popup.geometry()
+                position.moveTo(max(area.left(), min(before.x(), area.right() - position.width() + 1)),
+                                max(area.top(), min(before.y(), area.bottom() - position.height() + 1)))
+            delta = position.topLeft() - self.popup.geometry().topLeft()
             self.popup.setGeometry(position)
+            if menu.isVisible() and not delta.isNull():
+                point = menu.pos() + delta
+                menu.move(max(area.left(), min(point.x(), area.right() - menu.width() + 1)),
+                          max(area.top(), min(point.y(), area.bottom() - menu.height() + 1)))
 
     def pin(self, value, machine=None):
         self.popup.pinned = value

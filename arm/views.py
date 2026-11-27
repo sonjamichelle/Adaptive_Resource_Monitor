@@ -1,6 +1,6 @@
 from time import time, strftime, localtime
 
-from PySide6.QtCore import QSize, Qt, QSignalBlocker, QTimer
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, QSignalBlocker, QTimer
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QFrame, QGridLayout, QHeaderView, QHBoxLayout, QLabel,
@@ -8,7 +8,8 @@ from PySide6.QtWidgets import (
 )
 
 from .graphs import Plot, resource_series, selected_resource
-from .model import ALL, LOCAL, NETWORK, TOTAL, Connection, INTERVALS, RANGES, RESOURCES, format_value
+from .machine_controls import MachineDrag, MachineDropdown
+from .model import NETWORK, TOTAL, Connection, INTERVALS, RANGES, RESOURCES, format_value
 from .version import VERSION
 from .window_geometry import fit_work_area
 
@@ -40,10 +41,6 @@ def fill(combo, values, selected=None):
             combo.addItem(label, value)
         index = combo.findData(selected)
         combo.setCurrentIndex(max(index, 0))
-
-
-def machine_choices(dashboard):
-    return [(dashboard.name(machine), machine) for machine in (*dashboard.machines(), ALL)]
 
 
 def interval_choices():
@@ -185,7 +182,8 @@ class UpdateBanner(QFrame):
 
 
 class Monitor(QWidget):
-    def __init__(self, dashboard, expanded, request_archive, switch_expanded, set_pin, about_page=None):
+    def __init__(self, dashboard, expanded, request_archive, switch_expanded, set_pin, toggle_machine,
+                 reorder_machines, about_page=None):
         flags = Qt.WindowType.Window if expanded else (
             Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
         super().__init__(None, flags)
@@ -197,8 +195,7 @@ class Monitor(QWidget):
             self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
             self.setObjectName("hoverMonitor")
         self.pinned = False
-        self.machine = QComboBox()
-        self.machine.setAccessibleName("Machine")
+        self.machine = MachineDropdown(dashboard, toggle_machine)
         self.interval = QComboBox()
         self.interval.setAccessibleName("History range")
         self.device = QComboBox()
@@ -207,7 +204,7 @@ class Monitor(QWidget):
         self.header.setWordWrap(True)
         top = QHBoxLayout()
         for control in (self.machine, self.interval):
-            top.addWidget(control)
+            top.addWidget(control, 0 if expanded else 1)
         if expanded:
             top.addWidget(self.device, 1)
         else:
@@ -216,9 +213,9 @@ class Monitor(QWidget):
             pin.toggled.connect(set_pin)
             self.pin = pin
             details = QPushButton("Details")
-            details.clicked.connect(lambda: switch_expanded(self.machine.currentData()))
-            top.addWidget(pin)
-            top.addWidget(details)
+            details.clicked.connect(lambda: switch_expanded())
+            top.addWidget(pin, 1)
+            top.addWidget(details, 1)
         self.cards = {kind: Card(kind, expanded) for kind in RESOURCES}
         self.grid = QGridLayout()
         self.grid.setSpacing(5)
@@ -245,6 +242,9 @@ class Monitor(QWidget):
             self.version_label = version
         layout.addLayout(top)
         layout.addWidget(self.header)
+        self.empty = plain(QLabel("No systems selected for display."))
+        self.empty.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(self.empty, 1)
         self.single = QWidget()
         single_layout = QVBoxLayout(self.single)
         single_layout.setContentsMargins(0, 0, 0, 0)
@@ -261,13 +261,13 @@ class Monitor(QWidget):
         self.simultaneous.setWidget(groups)
         layout.addWidget(self.simultaneous, 1)
         self.sections = {}
+        self.drag = MachineDrag(self.simultaneous, self.section_rects,
+                                lambda source, index: reorder_machines(self.displayed, source, index, self))
         if expanded:
             self.table = measurements_table()
             single_layout.addWidget(self.table, 2)
             self.resize(900, 690)
-            self.machine.currentIndexChanged.connect(self.sync_devices)
             self.device.currentIndexChanged.connect(self.selection_changed)
-        self.machine.currentIndexChanged.connect(self.selection_changed)
         self.interval.currentIndexChanged.connect(self.selection_changed)
         self.archive_due = QTimer(self)
         self.archive_due.setSingleShot(True)
@@ -305,8 +305,12 @@ class Monitor(QWidget):
         """)
 
     @property
-    def selected_machine(self):
-        return self.machine.currentData() or LOCAL
+    def displayed(self):
+        return self.dashboard.machine_display.visible(self.dashboard.settings)
+
+    @property
+    def interaction_active(self):
+        return self.drag.active or self.machine.checklist.isVisible() or self.interval.view().isVisible()
 
     @property
     def selection(self):
@@ -321,11 +325,13 @@ class Monitor(QWidget):
         extra = self.version_label.sizeHint().height() + self.layout().spacing()
         extra += self.update_banner.sizeHint().height() + self.layout().spacing() if (
             hasattr(self, "update_banner") and not self.update_banner.isHidden()) else 0
-        if self.selected_machine != ALL:
+        if not self.displayed:
+            return QSize(cfg.popup_width, 72 + extra)
+        if len(self.displayed) == 1:
             return QSize(cfg.popup_width, cfg.popup_height + extra)
         # Cap in HoverMonitor against the work area. The scroll area keeps
         # six columns together even on a narrow monitor.
-        rows_height = sum(max(138, section.sizeHint().height()) for section in self.sections.values())
+        rows_height = sum(max(138, self.sections[machine].sizeHint().height()) for machine in self.displayed)
         return QSize(max(cfg.popup_width, 875), max(cfg.popup_height, rows_height + 72) + extra)
 
     def add_update_banner(self, open_update):
@@ -335,8 +341,11 @@ class Monitor(QWidget):
     def sync_devices(self):
         if not self.expanded:
             return
-        machine = self.selected_machine
-        self.device.setVisible(machine != ALL)
+        shown = self.displayed
+        self.device.setVisible(len(shown) == 1)
+        if len(shown) != 1:
+            return
+        machine = shown[0]
         devices = self.dashboard.collectors.devices.get(machine, {})
         kinds = {"cpu": "CPU", "gpu": "GPU", "disk": "Disk", "net": "Network"}
         values = [("Selected devices · aggregate", ("", TOTAL))] + [
@@ -349,12 +358,9 @@ class Monitor(QWidget):
 
     def sync(self):
         settings = self.dashboard.settings
-        fill(self.machine, machine_choices(self.dashboard),
-             self.machine.currentData() or settings.hover_machine or settings.default_machine)
         ranges = [(label, span) for span, label in RANGES.items()
                   if span <= 3600 or (self.expanded and settings.persistent and span <= settings.retention_days * 86400)]
         fill(self.interval, ranges, (self.interval.currentData() or 60) if self.expanded else settings.hover_range)
-        self.sync_devices()
         columns = 2 if self.expanded else settings.popup_columns
         kinds = tuple(self.cards) if self.expanded else tuple(
             kind for kind in self.cards if kind in settings.hover_resources)
@@ -363,55 +369,70 @@ class Monitor(QWidget):
             card.setVisible(resource in kinds)
         for index, kind in enumerate(kinds):
             self.grid.addWidget(self.cards[kind], index // columns, index % columns)
-        self.sync_sections()
+        self.sync_display()
 
-    def set_machine(self, machine):
-        index = self.machine.findData(machine)
-        if index >= 0:
-            with QSignalBlocker(self.machine):
-                self.machine.setCurrentIndex(index)
+    def sync_display(self):
+        self.machine.sync(self.displayed)
         self.sync_devices()
         self.sync_sections()
         if self.monitor_visible:
             self.selection_changed()
 
     def sync_sections(self):
-        both = self.selected_machine == ALL
-        self.single.setVisible(not both)
-        self.simultaneous.setVisible(both)
-        if not both:
-            return
-        machines = self.dashboard.monitored()
-        for machine in self.sections.keys() - set(machines):
+        shown = self.displayed
+        self.empty.setVisible(not shown)
+        self.header.setVisible(bool(shown))
+        self.single.setVisible(len(shown) == 1)
+        self.simultaneous.setVisible(len(shown) > 1)
+        for machine in self.sections.keys() - set(self.dashboard.machines()):
             section = self.sections.pop(machine)
+            self.drag.unwatch(section.title)
+            self.group_rows.removeWidget(section)
+            section.deleteLater()
+        if len(shown) < 2:
+            return
+        for machine in self.sections.keys() - set(shown):
+            section = self.sections[machine]
             self.group_rows.removeWidget(section)
             section.hide()
-            section.deleteLater()
-        for index, machine in enumerate(machines):
+        for index, machine in enumerate(shown):
             if machine not in self.sections:
-                section = MachineSection(self.expanded, self.refresh)
-                self.sections[machine] = section
+                self.sections[machine] = section = MachineSection(self.expanded, self.refresh)
+                self.drag.watch(section.title, lambda _point, machine=machine: machine)
+            section = self.sections[machine]
+            current = self.group_rows.indexOf(section)
+            if current != index:
+                if current >= 0:
+                    self.group_rows.removeWidget(section)
                 self.group_rows.insertWidget(index, section)
+            section.show()
+
+    def section_rects(self):
+        return [(machine, QRect(self.sections[machine].mapTo(self.simultaneous.viewport(), QPoint()),
+                                self.sections[machine].size())) for machine in self.displayed]
 
     def selection_changed(self):
-        self.sync_sections()
         if self.monitor_visible:
             self.refresh()
             self.archive_due.start()
 
     def archive(self):
-        if self.expanded and self.monitor_visible:
-            self.request_archive(self.selected_machine, self.span, self.selection)
+        if self.expanded and self.monitor_visible and self.displayed:
+            selected = self.selection if len(self.displayed) == 1 else ("", TOTAL)
+            self.request_archive(self.displayed, self.span, selected)
 
     def refresh(self):
         self.sync_devices()
-        now, span, scope = time(), self.span, self.selected_machine
+        shown = self.displayed
+        if not shown:
+            return
+        now, span = time(), self.span
         cfg = self.dashboard.settings
         archive = self.expanded and cfg.persistent
-        if scope == ALL:
-            self.sync_sections()
-            self.refresh_sections(now, span, archive)
+        if len(shown) > 1:
+            self.refresh_sections(shown, now, span, archive)
             return
+        scope = shown[0]
         text = self.scope_status(scope)
         set_label(self.header, text + f" · Tray {cfg.tray_refresh:g} s")
         device_kind, selected = self.selection
@@ -440,8 +461,7 @@ class Monitor(QWidget):
                 text += f" · {cpu_name}"
         return text
 
-    def refresh_sections(self, now, span, archive):
-        machines = self.dashboard.monitored()
+    def refresh_sections(self, machines, now, span, archive):
         online = sum(self.dashboard.state(machine) == Connection.ONLINE for machine in machines)
         set_label(self.header, f"{online}/{len(machines)} connected · Individual machine histories")
         for machine in machines:

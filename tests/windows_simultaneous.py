@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
-from windows_gui import start_isolated, verify_desktop
+from windows_gui import choose_display, start_isolated, verify_desktop
 
 
 def evaluate(root, captures, restart, result):
@@ -50,9 +50,7 @@ def evaluate(root, captures, restart, result):
             raise AssertionError(f"Readings not ready: {state}")
 
     def choose(value):
-        index = session.popup.machine.findData(value)
-        assert index >= 0
-        session.popup.machine.setCurrentIndex(index)
+        choose_display(session, value)
 
     def measure(name, seconds=12):
         before, start = proc.cpu_times(), monotonic()
@@ -75,9 +73,9 @@ def evaluate(root, captures, restart, result):
         machines = session.dashboard.monitored()
         assert len(machines) == 4
         if restart:
-            assert session.settings.hover_machine == ALL and session.settings.hover_range == 300
+            assert session.dashboard.machine_display.select_new and session.settings.hover_range == 300
             session.hover.show(primary)
-            assert session.popup.selected_machine == ALL and session.popup.span == 300
+            assert session.popup.displayed == tuple(machines) and session.popup.span == 300
             assert not session.popup.pinned
         wait(30, lambda: all(session.dashboard.state(m) == Connection.ONLINE for m in machines))
         history = session.collectors.history
@@ -110,8 +108,8 @@ def evaluate(root, captures, restart, result):
 
         menu = session.menus[primary]
         icon_count = len(session.icons)
-        menu.all.trigger()
-        assert menu.all.isChecked() and len(session.icons) == icon_count
+        menu.machines.master.click()
+        assert menu.machines.master.isChecked() and len(session.icons) == icon_count
         with patch("arm.application.tray_icon", wraps=tray_icon) as draw:
             session.render()
             assert {call.args[1] for call in draw.call_args_list} == set(session.icons)
@@ -137,7 +135,7 @@ def evaluate(root, captures, restart, result):
 
         session.popup.hide()
         session.open_expanded()
-        assert session.expanded.selected_machine == ALL and set(session.expanded.sections) == set(machines)
+        assert session.expanded.displayed == tuple(machines) and set(session.expanded.sections) == set(machines)
         capture(session.expanded, "04-all-systems-expanded")
         assert session.expanded.simultaneous.horizontalScrollBar().maximum() == 0
         assert session.expanded.simultaneous.verticalScrollBar().maximum() == 0
@@ -149,7 +147,7 @@ def evaluate(root, captures, restart, result):
         measure("All Systems expanded, four connected machines")
         session.expanded.showMinimized()
         session.expanded.showNormal()
-        assert session.expanded.selected_machine == ALL
+        assert session.expanded.displayed == tuple(machines)
         session.expanded.close()
 
         session.hover.show(primary)
@@ -181,11 +179,11 @@ def evaluate(root, captures, restart, result):
         chosen = machines[1]
         choose(chosen)
         session.collectors.disconnect(chosen)
-        assert session.popup.selected_machine == chosen and "Disconnected" in session.popup.header.text()
-        assert ConfigStore(root / "settings.json").load().hover_machine == chosen
+        assert session.popup.displayed == (chosen,) and "Disconnected" in session.popup.header.text()
+        assert session.store.load_display(session.settings).selected == (chosen,)
         session.collectors.reconnect(chosen)
         wait(25, lambda: session.dashboard.state(chosen) == Connection.ONLINE)
-        assert session.popup.selected_machine == chosen
+        assert session.popup.displayed == (chosen,)
         choose(ALL)
         session.popup.interval.setCurrentIndex(session.popup.interval.findData(300))
         session.set_pin(True)
@@ -201,10 +199,10 @@ def evaluate(root, captures, restart, result):
             session.hover.tick()
         assert session.popup.isHidden()
         session.hover.show(primary)
-        assert session.popup.selected_machine == ALL and session.popup.span == 300
-        assert session.expanded.selected_machine == ALL
+        assert session.popup.displayed == tuple(machines) and session.popup.span == 300
+        assert session.expanded.displayed == tuple(machines)
         saved = ConfigStore(root / "settings.json").load()
-        assert saved.hover_machine == ALL and saved.hover_range == 300
+        assert session.store.load_display(saved).select_new and saved.hover_range == 300
         result["retained_dismissal_pin_disconnect"] = True
     finally:
         session.close()

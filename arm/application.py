@@ -53,6 +53,7 @@ class Application(QObject):
     archived = Signal(object, object)
     history_error = Signal(str)
     process_info = Signal(str)
+    display_changed = Signal()
 
     def __init__(self, qt, root):
         super().__init__()
@@ -78,7 +79,7 @@ class Application(QObject):
         self.history_error.connect(self.report_history_error)
         self.process_info.connect(self.accept_process_info)
         self.collectors = Collectors(self.settings, self.credentials, self.hosts)
-        self.dashboard = Dashboard(self.collectors)
+        self.dashboard = Dashboard(self.collectors, self.store.load_display(self.settings))
         self.collectors.changed.connect(self.sync_status)
         self.icons = {}
         self.menus = {}
@@ -90,17 +91,17 @@ class Application(QObject):
         self.about_page.updates.changed.connect(self.sync_update_notice)
         self.about_page.updates.quit_requested.connect(self.close_for_update)
         self.expanded = Monitor(self.dashboard, True, self.request_archive, self.open_expanded,
-                                self.set_pin, self.about_page)
+                                self.set_pin, self.toggle_machine, self.reorder_machines, self.about_page)
         self.expanded.setWindowIcon(self.brand_icon)
         self.window_geometry = WindowGeometry(self.expanded, self.root / "monitor-window.bin")
-        self.popup = Monitor(self.dashboard, False, self.request_archive, self.open_expanded, self.set_pin)
+        self.popup = Monitor(self.dashboard, False, self.request_archive, self.open_expanded, self.set_pin,
+                             self.toggle_machine, self.reorder_machines)
         for view in (self.popup, self.expanded):
             view.add_update_banner(self.open_update)
         self.hover = HoverMonitor(self.popup, self.dashboard, self.icons)
-        for view in (self.popup, self.expanded):
-            view.machine.currentIndexChanged.connect(partial(self.monitor_selected, view))
+        self.popup.machine.checklist.aboutToHide.connect(lambda: QTimer.singleShot(0, self.hover.reposition))
         self.popup.interval.currentIndexChanged.connect(
-            lambda _: self.remember_monitor(span=self.popup.span))
+            lambda _: self.remember_monitor(self.popup.span))
         self.tray_timer = QTimer(self)
         self.tray_timer.timeout.connect(self.render)
         self.hover_timer = QTimer(self)
@@ -141,7 +142,7 @@ class Application(QObject):
         self.sync_icons()
         self.popup.sync()
         self.expanded.sync()
-        self.restore_monitor()
+        self.hover.reposition()
         self.render()
         self.about_page.updates.configure(settings)
 
@@ -171,24 +172,31 @@ class Application(QObject):
             settings = replace(settings, hover_machine="")
         if settings.tray_machine not in machine_ids(settings):
             settings = replace(settings, tray_machine=LOCAL)
+        previous = self.dashboard.machine_display
+        display = previous.with_targets(settings)
         self.store.save(settings)
         self.settings = settings
+        self.dashboard.machine_display = display
         self.configure()
         self.expanded.archive()
+        if display != previous:
+            try:
+                self.store.save_display(display)
+            except OSError as exc:
+                LOG.exception("Could not save machine display preferences after changing profiles")
+                QMessageBox.warning(self.expanded, "Machine display preferences", str(exc))
         LOG.info("Settings updated")
 
     def sync_status(self):
-        self.popup.sync()
-        self.expanded.sync()
-        self.hover.reposition()
-        self.sync_menus()
-        self.refresh_views()
+        self.sync_display()
 
     def scopes(self):
         cfg = self.settings
         if not cfg.separate_tray_icons:
             return [cfg.tray_machine]
-        return list(dict.fromkeys((cfg.tray_machine, LOCAL, *(t.identifier for t in cfg.targets if t.tray))))
+        separate = {LOCAL, *(target.identifier for target in cfg.targets if target.tray)}
+        return [cfg.tray_machine, *(machine for machine in self.dashboard.machines()
+                                    if machine != cfg.tray_machine and machine in separate)]
 
     def sync_icons(self):
         scopes = self.scopes()
@@ -216,48 +224,56 @@ class Application(QObject):
 
     def sync_menus(self):
         for menu in self.menus.values():
-            if not menu.isVisible():
-                menu.refresh()
+            menu.refresh()
 
-    def monitor_machine(self):
-        choices = monitor_choices(self.settings)
-        return next((choice for choice in (self.settings.hover_machine, self.settings.default_machine)
-                     if choice in choices), LOCAL)
-
-    def restore_monitor(self):
-        machine = self.monitor_machine()
-        self.popup.set_machine(machine)
-        self.expanded.set_machine(machine)
-        with QSignalBlocker(self.popup.interval):
-            self.popup.interval.setCurrentIndex(self.popup.interval.findData(self.settings.hover_range))
+    def sync_display(self):
+        self.popup.sync_display()
+        self.expanded.sync_display()
         self.hover.reposition()
         self.sync_menus()
 
-    def monitor_selected(self, view, _index):
-        self.remember_monitor(machine=view.selected_machine)
-
-    def remember_monitor(self, machine=None, span=None):
-        changes = {}
-        if machine in monitor_choices(self.settings) and machine != self.settings.hover_machine:
-            changes["hover_machine"] = machine
-        if span is not None and span != self.settings.hover_range:
-            changes["hover_range"] = span
-        if not changes:
+    def remember_monitor(self, span):
+        if span == self.settings.hover_range:
             return
-        updated = replace(self.settings, **changes)
+        updated = replace(self.settings, hover_range=span)
         try:
             self.store.save(updated)
         except OSError as exc:
-            self.restore_monitor()
-            QMessageBox.warning(self.popup, "Monitor selection", str(exc))
+            with QSignalBlocker(self.popup.interval):
+                self.popup.interval.setCurrentIndex(self.popup.interval.findData(self.settings.hover_range))
+            QMessageBox.warning(self.popup, "History range", str(exc))
             return
-        # Display preferences need no collector restart or archive reset.
         self.settings = self.collectors.settings = updated
-        self.restore_monitor()
 
-    def select_machine(self, machine, scope):
-        self.remember_monitor(machine=machine)
-        self.hover.show(scope)
+    def save_display(self, display, parent):
+        if display == self.dashboard.machine_display:
+            self.sync_display()
+            return
+        try:
+            self.store.save_display(display)
+        except OSError as exc:
+            self.sync_display()
+            LOG.exception("Could not save machine display preferences")
+            QMessageBox.warning(parent, "Machine display preferences", str(exc))
+            return
+        self.dashboard.machine_display = display
+        self.sync_display()
+        self.display_changed.emit()
+
+    def toggle_machine(self, machine):
+        display = self.dashboard.machine_display
+        eligible = display.eligible(self.settings)
+        checked = set(display.selected)
+        if machine == ALL:
+            checked = checked - eligible if eligible <= checked else checked | eligible
+        elif machine in eligible:
+            checked.symmetric_difference_update({machine})
+        self.save_display(display.with_selection(self.settings, checked), self.qt.activeWindow() or self.popup)
+
+    def reorder_machines(self, shown, source, index, parent):
+        display = self.dashboard.machine_display
+        if source in shown:
+            self.save_display(display.move(self.settings, shown, source, index), parent)
 
     def set_tray_display(self, mode):
         if mode == self.settings.mode:
@@ -299,10 +315,7 @@ class Application(QObject):
             if view.monitor_visible:
                 view.refresh()
 
-    def open_expanded(self, machine=None, history=False):
-        if machine not in monitor_choices(self.settings):
-            machine = self.monitor_machine()
-        self.expanded.set_machine(machine)
+    def open_expanded(self, history=False):
         if history:
             index = self.expanded.interval.findData(3600)
             self.expanded.interval.setCurrentIndex(max(0, index))
@@ -310,12 +323,11 @@ class Application(QObject):
         self.expanded.refresh()
         self.expanded.archive()
 
-    def request_archive(self, scope, span, selection):
+    def request_archive(self, machines, span, selection):
         if not self.storage:
             return
         kind, device = selection
-        machines = self.dashboard.monitored() if scope == ALL else [scope]
-        signature = (scope, span, selection, tuple(machines))
+        signature = (span, selection, tuple(sorted(machines)))
         if signature == self.archive_signature:
             return
         self.archive_signature = signature
