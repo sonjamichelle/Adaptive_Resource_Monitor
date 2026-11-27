@@ -1,7 +1,7 @@
 # Jenkins
 
 The Phantom Jenkins controller's Applications view contains the
-Adaptive Resource Monitor folder at job/Adaptive-Resource-Monitor/.
+[Adaptive Resource Monitor folder](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/).
 Both jobs use the existing inkiron-windows native Windows x64 agent through
 its inkiron-windows-x64 label. The agent needs Windows Git, Python 3.12 x64,
 trusted HTTPS, workspace write access and permission to create a private
