@@ -9,7 +9,7 @@ from arm.providers.ssh import probe_command
 SECRET = "arm-fixture-only"
 COMMAND = probe_command().encode()
 FRAME = (
-    "os\tLinux fixture\nboot\t{boot}\ncpu\tcpu\t{busy} 0 200 500 0 0 0 0 0 0\n"
+    "os\tLinux fixture\nboot\t{boot}\nuptime\t12345.67\ncpu\tcpu\t{busy} 0 200 500 0 0 0 0 0 0\n"
     "cpu\tcpu0\t{busy} 0 200 500 0 0 0 0 0 0\n"
     "ram\tMemTotal\t16384\nram\tMemAvailable\t12000\n"
     "ram\tSwapTotal\t2024\nram\tSwapFree\t1024\n"

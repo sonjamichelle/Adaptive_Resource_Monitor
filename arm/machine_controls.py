@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Machine checklists and drag controls shared by monitoring views."""
 from PySide6.QtCore import QEvent, QObject, QPoint, QSignalBlocker, Qt, QTimer
 from PySide6.QtWidgets import (

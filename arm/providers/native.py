@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Windows performance data and adapter identity."""
 import ctypes as ct
 from ctypes import wintypes as w
@@ -7,6 +14,13 @@ import uuid
 import winreg
 
 LOG = logging.getLogger(__name__)
+
+
+def uptime_counter():
+    counter = ct.WinDLL("kernel32").GetTickCount64
+    counter.argtypes = ()
+    counter.restype = ct.c_uint64
+    return counter
 
 
 class _Double(ct.Structure):

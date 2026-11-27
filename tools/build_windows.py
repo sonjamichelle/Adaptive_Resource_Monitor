@@ -1,8 +1,16 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Freeze, compile and verify the ARM Windows release."""
 import argparse
 from datetime import datetime, timezone
 from hashlib import file_digest
 from importlib import metadata
+from itertools import takewhile
 import json
 import os
 from pathlib import Path
@@ -18,6 +26,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from arm.version import NAME, VERSION, version_key
+from arm.update_release import LICENSE_FILE
 from arm.branding import (
     APPLICATION_ICON, APPLICATION_IMAGE, APPLICATION_LOGO, APP_MODEL_ID, BUNDLED_ASSETS,
     COPYRIGHT, DESCRIPTION, INSTALL_ID, PUBLISHER, SUPPORT_URL, WEBSITE,
@@ -55,6 +64,8 @@ def copy_notices(payload):
     notices.mkdir()
     for name in ("LGPL-3.0-only.txt", "GPL-3.0-only.txt"):
         shutil.copyfile(ROOT / "packaging" / "qt-notices" / name, notices / name)
+    for source in sorted((ROOT / "packaging" / "dependency-notices").iterdir()):
+        shutil.copyfile(source, notices / source.name)
     for package in ("PySide6", "PySide6-Essentials", "PySide6-Addons", "shiboken6", "psutil",
                     "paramiko", "cryptography", "cffi", "bcrypt", "PyNaCl", "PyInstaller",
                     "setuptools", "nvidia-ml-py", "invoke", "pycparser"):
@@ -67,6 +78,11 @@ def copy_notices(payload):
                      token in entry.name.lower() for token in ("license", "copying", "notice"))]
         for index, entry in enumerate(files):
             shutil.copyfile(entry.locate(), notices / f"{package}-{index}-{entry.name}")
+    nvml = metadata.distribution("nvidia-ml-py").locate_file("pynvml.py").read_text(encoding="utf-8")
+    nvml_notice = "\n".join(takewhile(lambda line: not line or line.startswith("#"), nvml.splitlines()))
+    if "NVIDIA Corporation" not in nvml_notice or "Redistributions in binary form" not in nvml_notice:
+        raise RuntimeError("NVIDIA NVML Python license notice is missing")
+    (notices / "NVIDIA-NVML-Python-LICENSE.txt").write_text(nvml_notice.rstrip() + "\n", encoding="utf-8")
     python_license = Path(sys.base_prefix) / "LICENSE.txt"
     if python_license.is_file():
         shutil.copyfile(python_license, notices / "Python-LICENSE.txt")
@@ -157,8 +173,10 @@ def build(compiler, output):
         (payload / "BUILD.json").write_text(json.dumps(identity, indent=2) + "\n", encoding="utf-8")
         for name in ("README.md", "SECURITY.md", "REMOTE_MONITORING.md", "CHANGELOG.md", "VERSION.md"):
             shutil.copyfile(ROOT / name, payload / name)
-        if (ROOT / "LICENSE.md").is_file():
-            shutil.copyfile(ROOT / "LICENSE.md", payload / "LICENSE.md")
+        shutil.copyfile(ROOT / LICENSE_FILE, payload / LICENSE_FILE)
+        wizard_license = temporary / "Software License.txt"
+        wizard_license.write_text((ROOT / LICENSE_FILE).read_text(encoding="utf-8-sig"),
+                                  encoding="utf-8-sig", newline="\r\n")
         copy_notices(payload)
         setup_id = INSTALL_ID.replace("{", "{{", 1)
         run([
@@ -168,7 +186,7 @@ def build(compiler, output):
             f"-DSetupId={setup_id}", f"-DArmPublisher={PUBLISHER}", f"-DArmCopyright={COPYRIGHT}",
             f"-DAppWebsite={WEBSITE}", f"-DAppSupport={SUPPORT_URL}", f"-DAppModelId={APP_MODEL_ID}",
             f"-DAppDescription={DESCRIPTION}", f"-DWizardImage={ROOT / APPLICATION_IMAGE}",
-            f"-DWizardEmblem={ROOT / APPLICATION_LOGO}",
+            f"-DWizardEmblem={ROOT / APPLICATION_LOGO}", f"-DLicenseAgreement={wizard_license}",
             str(ROOT / "packaging" / "setup.iss"),
         ])
         zip_path = temporary / f"{STEM}-portable.zip"

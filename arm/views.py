@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 from time import time, strftime, localtime
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt, QSignalBlocker, QTimer
@@ -9,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from .graphs import Plot, resource_series, selected_resource
 from .machine_controls import MachineDrag, MachineDropdown
-from .model import NETWORK, TOTAL, Connection, INTERVALS, RANGES, RESOURCES, format_value
+from .model import NETWORK, TOTAL, Availability, Connection, INTERVALS, RANGES, RESOURCES, format_value
 from .version import VERSION
 from .window_geometry import fit_work_area
 
@@ -71,6 +78,17 @@ def display_value(item):
         return item.availability.value.capitalize()
     description = format_value(item.value, item.unit)
     return description if item.valid else f"{description} · {item.availability}"
+
+
+def describe_uptime(reading):
+    if reading is None or reading.value is None:
+        return "Uptime unavailable"
+    minutes, seconds = divmod(int(reading.value), 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    parts = [f"{value}{unit}" for value, unit in ((days, "d"), (hours, "h"), (minutes, "m")) if value]
+    text = "Uptime " + (" ".join(parts) if parts else f"{seconds}s")
+    return f"{text} (last sample)" if reading.availability is Availability.STALE else text
 
 
 class Card(QFrame):
@@ -151,6 +169,10 @@ class MachineSection(QFrame):
             details.toggled.connect(self.table.setVisible)
             details.toggled.connect(refresh)
             header.addWidget(details)
+
+    def drag_surfaces(self):
+        return (self, self.title, *(widget for card in self.cards.values()
+                                    for widget in (card, *card.findChildren(QWidget))))
 
 
 class UpdateBanner(QFrame):
@@ -386,7 +408,8 @@ class Monitor(QWidget):
         self.simultaneous.setVisible(len(shown) > 1)
         for machine in self.sections.keys() - set(self.dashboard.machines()):
             section = self.sections.pop(machine)
-            self.drag.unwatch(section.title)
+            for widget in section.drag_surfaces():
+                self.drag.unwatch(widget)
             self.group_rows.removeWidget(section)
             section.deleteLater()
         if len(shown) < 2:
@@ -398,7 +421,8 @@ class Monitor(QWidget):
         for index, machine in enumerate(shown):
             if machine not in self.sections:
                 self.sections[machine] = section = MachineSection(self.expanded, self.refresh)
-                self.drag.watch(section.title, lambda _point, machine=machine: machine)
+                for widget in section.drag_surfaces():
+                    self.drag.watch(widget, lambda _point, machine=machine: machine)
             section = self.sections[machine]
             current = self.group_rows.indexOf(section)
             if current != index:
@@ -453,6 +477,8 @@ class Monitor(QWidget):
         last = collectors.last.get(scope)
         last_text = f" · Last sample {strftime('%H:%M:%S', localtime(last))}" if self.expanded and last else ""
         text = f"{os_label} · {self.dashboard.state(scope)} · Sample {self.dashboard.interval(scope):g} s{last_text}"
+        uptime = self.dashboard.observation(scope, "cpu", TOTAL, "system.uptime", time())
+        text += f" · {describe_uptime(uptime)}"
         if status and status.detail:
             text += f" · {status.detail}"
         if self.expanded and not concise:

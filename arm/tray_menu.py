@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Design Creations tray commands for each visible ARM icon."""
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QActionGroup, QColor, QFont, QIcon, QPainter, QPen, QPixmap
@@ -12,9 +19,9 @@ SP = QStyle.StandardPixmap
 
 
 class TrayMenu(QMenu):
-    def __init__(self, app, scope):
+    def __init__(self, app):
         super().__init__()
-        self.app, self.scope = app, scope
+        self.app = app
         self.setAccessibleName(f"{NAME} tray menu")
         self.add_header()
         self.update = self.action(self, "", None, app.open_update)
@@ -26,8 +33,6 @@ class TrayMenu(QMenu):
         open_monitor = self.action(self, "Open Resource Monitor", SP.SP_ComputerIcon,
                                    app.open_expanded)
         self.setDefaultAction(open_monitor)
-        self.pin = self.action(self, "Pin Resource Monitor", None, lambda: app.toggle_pin(scope))
-        self.pin.setCheckable(True)
 
         self.addSeparator()
         self.machines = MachineMenu(app.dashboard, app.toggle_machine, self)
@@ -101,7 +106,6 @@ class TrayMenu(QMenu):
         app = self.app
         self.machines.sync()
         self.modes[app.settings.mode].setChecked(True)
-        self.pin.setChecked(app.popup.pinned and app.hover.anchor == self.scope)
         self.start.setChecked(app.startup_enabled())
 
     def theme(self, colors):

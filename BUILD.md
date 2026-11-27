@@ -27,6 +27,12 @@ Settings and history stay under the user's local app data across upgrades and
 uninstall. Extract the portable ZIP before running AdaptiveResourceMonitor.exe.
 Both packages contain their Python and Qt runtime.
 
+Both packages include the root `LICENSE.md`, copied byte for byte.
+Interactive Setup displays a copy of that text as its license agreement.
+The existing signed updater remains unattended after in-app authorization.
+Jenkins validates the packaged license against the digest from the exact
+source revision before publication.
+
 Jenkins adds signed release manifests and a pinned build receipt. A local
 build produces packages and SHA-256 hashes. The maintenance executable and
 runtime package both embed VERSION.md and the public verification key.

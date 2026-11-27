@@ -1,7 +1,14 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Sign an archived Jenkins candidate and publish an explicitly pinned build."""
 import argparse
 from base64 import b64decode, b64encode
-from hashlib import file_digest
+from hashlib import file_digest, sha256 as hash_bytes
 import json
 import os
 from pathlib import Path
@@ -22,8 +29,8 @@ sys.path.insert(0, str(ROOT))
 from arm.branding import APP_MODEL_ID
 from arm.update_client import ReleaseClient
 from arm.update_release import (
-    ARCHITECTURE, KINDS, MANIFEST, UpdateError, artifact_name, canonical, sha256, source_config,
-    verify_file, verify_manifest,
+    ARCHITECTURE, KINDS, LICENSE_FILE, LICENSE_NOTE, MANIFEST, UpdateError, artifact_name, canonical, sha256,
+    software_license_digest, source_config, verify_file, verify_manifest,
 )
 from arm.update_worker import unpack_portable, verify_executable
 from arm.version import VERSION, version_key
@@ -51,7 +58,11 @@ def notes_at(commit, version):
     section = re.search(rf"^## {re.escape(version)}\s[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
     if not section or not section[1].strip():
         raise UpdateError("Pinned version has no changelog entry")
-    return section[1].strip()
+    notes = section[1].strip()
+    if git("ls-tree", "--name-only", commit, "--", LICENSE_FILE):
+        license_text = subprocess.check_output(("git", "show", f"{commit}:{LICENSE_FILE}"), cwd=ROOT)
+        notes += f"\n\n{LICENSE_NOTE}{hash_bytes(license_text).hexdigest()}"
+    return notes
 
 
 def expected_receipt(release):
@@ -96,6 +107,9 @@ def verify(folder, version, commit, number):
             raise UpdateError("Portable package is inconsistent with the selected Jenkins build")
         if json.loads((payload / "_internal" / "update-source.json").read_bytes()) != source:
             raise UpdateError("Packaged update repository or trust key is inconsistent")
+        if (license_digest := software_license_digest(release.notes)):
+            if not (payload / LICENSE_FILE).is_file() or sha256(payload / LICENSE_FILE) != license_digest:
+                raise UpdateError("Packaged software license disagrees with the signed source license")
     print(f"Verified Ed25519 signature, Windows x64 packages and build identity | {version} | {commit} | Jenkins #{number}")
     return release
 

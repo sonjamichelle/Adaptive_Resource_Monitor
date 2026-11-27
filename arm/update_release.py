@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Signed release contract shared by the updater, maintenance worker and CI."""
 from base64 import b64decode
 from dataclasses import dataclass
@@ -13,6 +20,8 @@ from .branding import APP_MODEL_ID
 from .version import CHANNELS, ROOT, version_key
 
 MANIFEST = "arm-update-windows-x64.json"
+LICENSE_FILE = "LICENSE.md"
+LICENSE_NOTE = "Software license SHA-256 "
 ARCHITECTURE = "windows-x64"
 KINDS = {"installed": "-setup.exe", "portable": "-portable.zip"}
 MAX_PACKAGE_SIZE = 1024**3
@@ -37,6 +46,15 @@ def canonical(value):
 def sha256(path):
     with Path(path).open("rb") as stream:
         return file_digest(stream, "sha256").hexdigest()
+
+
+def software_license_digest(notes):
+    last = notes.rsplit("\n", 1)[-1]
+    if last.startswith(LICENSE_NOTE):
+        digest = last[len(LICENSE_NOTE):]
+        if SHA256.fullmatch(digest):
+            return digest
+    return None
 
 
 def artifact_name(version, kind):

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.3.3_beta — 2026-11-26
+
+- Bundle the Design Creations Attribution-NonCommercial-ShareAlike License v1.0 and show it offline from About.
+- Dismiss the update success banner after View Changelog opens the changelog.
+- Drag a machine from its card or graphs in either monitor.
+- Use the hover monitor's Pin/Unpin button to change pinning. Clicking the tray icon opens the popup.
+- Show uptime in each Local Machine and Linux remote monitoring section.
+
 ## v0.8.2.3_beta — 2026-11-26
 
 - Drag machine headers to reorder sections in either monitor, or drag rows in Remote Targets. ARM saves the shared order as soon as a machine is dropped.

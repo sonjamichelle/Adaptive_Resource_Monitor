@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 import logging
 import platform
 from time import perf_counter as monotonic, time
@@ -5,7 +12,7 @@ from time import perf_counter as monotonic, time
 import psutil
 
 from . import Provider
-from .native import Pdh, commit, cpu_identity, interface_info, pagefiles, physical_cores
+from .native import Pdh, commit, cpu_identity, interface_info, pagefiles, physical_cores, uptime_counter
 from ..model import (
     LOCAL, TOTAL, Availability, Device, Reading, Sample, aggregate, rate, readings, usage,
 )
@@ -21,6 +28,7 @@ class Cpu(Provider):
         self.last = {}
         self.name = cpu_identity()
         self.cores = physical_cores()
+        self.uptime = uptime_counter()
         self.stamp = 0
 
     @staticmethod
@@ -52,6 +60,7 @@ class Cpu(Provider):
         self.last, self.stamp = times, now
         frequency = psutil.cpu_freq()
         items.extend(readings(LOCAL, stamp, TOTAL, {
+            "system.uptime": (self.uptime() / 1000, "s"),
             "cpu.util": (cpu_group(values, times), "%"),
             "cpu.frequency": (frequency.current if frequency else None, "MHz"),
             "cpu.physical": (len(cores) or psutil.cpu_count(logical=False), "count"),

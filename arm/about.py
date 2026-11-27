@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """The Design Creations About tab and bundled project documents."""
 import json
 import logging
@@ -19,6 +26,8 @@ from .branding import (
     APPLICATION_IMAGE, COMPANY_LOGO, COPYRIGHT, DEVELOPER, DESCRIPTION, INSTALL_ID,
     SUPPORT_URL, WEBSITE, asset, document,
 )
+from .software_license import LICENSE_LABEL, LicenseDialog
+from .update_release import LICENSE_FILE
 from .version import NAME, VERSION
 from .update_ui import UpdatePanel
 from .window_geometry import WindowGeometry
@@ -27,7 +36,6 @@ LOG = logging.getLogger(__name__)
 DOCS = {
     "README.md": "README",
     "CHANGELOG.md": "Change Log",
-    "LICENSE.md": "Software License",
     "THIRD_PARTY.md": "Third-party Notices",
 }
 UNINSTALL_KEY = rf"Software\Microsoft\Windows\CurrentVersion\Uninstall\{INSTALL_ID}_is1"
@@ -127,9 +135,15 @@ class AboutPage(QWidget):
         self.version = QLabel(VERSION)
         details.addRow("Installed version", self.version)
         details.addRow("Release classification", QLabel(release_classification()))
-        license_info = ("See Software License below." if "LICENSE.md" in self.documents
-                        else "Project license terms unavailable.")
-        details.addRow("Software license", QLabel(license_info))
+        license_row = QHBoxLayout()
+        self.view_license = QPushButton("View License")
+        self.view_license.clicked.connect(self.show_license)
+        bundled = document(LICENSE_FILE).is_file()
+        license_row.addWidget(QLabel(LICENSE_LABEL if bundled else "License file unavailable"))
+        self.view_license.setEnabled(bundled)
+        license_row.addWidget(self.view_license)
+        license_row.addStretch()
+        details.addRow("Software license", license_row)
         view = QPushButton("Application Details")
         view.clicked.connect(self.show_details)
         buttons = QHBoxLayout()
@@ -194,10 +208,22 @@ class AboutPage(QWidget):
         self.document_group.setTitle(self.documents[name])
         try:
             self.browser.setMarkdown(path.read_text(encoding="utf-8"))
+            if name == "CHANGELOG.md" and self.isVisible():
+                self.updates.dismiss_success_notice()
         except (OSError, UnicodeError) as exc:
             LOG.warning("Unable to read About document %s: %s", name, exc)
             self.browser.setPlainText(f"Unable to open {name}.")
         self.browser.verticalScrollBar().setValue(0)
+
+    def show_license(self):
+        try:
+            markdown = document(LICENSE_FILE).read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError) as exc:
+            LOG.warning("Unable to read the bundled software license: %s", exc)
+            return
+        dialog = LicenseDialog(self, self.data_root, markdown)
+        dialog.exec()
+        dialog.deleteLater()
 
     def open_link(self, target):
         if target in self.documents:

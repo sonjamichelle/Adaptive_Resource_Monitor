@@ -1,5 +1,20 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.8.3.3_beta — Software license and monitor refinements
+
+This Minor milestone bundles the supplied DC-ANCSA v1.0 text byte for byte,
+adds original source attribution, presents the complete license in a themed
+offline About dialog with saved geometry, and adds a license agreement to
+interactive Windows Setup. Signed release information identifies the
+license hash. Later changes require verified text and explicit acceptance
+before the updater shuts down the application.
+
+The update success banner dismisses when its changelog opens. Any
+non-interactive part of a machine card can start a drag, including a graph.
+The hover monitor's own button controls pinning.
+Windows and Linux machine headers report uptime from the existing local
+sampling worker and SSH telemetry stream.
+
 ## v0.8.2.3_beta — Machine ordering and display selection
 
 Two Feature increments combine drag-and-drop machine ordering and checkbox
@@ -22,6 +37,59 @@ freezer and missing LGPL v3 and GPL v3 license texts. The build excludes the
 optional plugin and includes the upstream notices and versioned sources for
 the dynamically linked Qt and PySide runtime. The native package test checks
 both notice files and the absence of the plugin.
+
+### Release verification
+
+All 38 automated regressions passed. The private native Windows tests
+exercised every requested machine combination at effective 100% and 150%
+Qt scaling, drag-and-drop in all three interfaces, Escape cancellation,
+autoscroll, failed-write recovery, hidden-machine history, and restoration
+after the isolated Windows process was forcibly terminated. Four loopback
+SSH fixtures carried the production profile names in those tests. The
+reordered windows and six display combinations are recorded in
+`evidence/v0.8.2.3_beta-native/`.
+
+A separate native installer identifier and disposable settings root enabled
+an upgrade, rollback and re-upgrade check beside the running production
+instance. All four Setup operations and uninstall returned 0. The profile,
+saved display order and selection, and history fixture stayed intact.
+
+Build and Archive #16 built commit
+`d2f8550111c85ae3fc12c3ed47fc511acce25733`. Publish Release #12
+published all seven archived assets. Anonymous size and SHA-256 comparison
+matched the same archive. The Ed25519 signature, package architecture,
+version, release notes, and source commit were verified.
+[Build #16](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/16/)
+[Publication #12](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/12/)
+[Public release](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.2.3_beta)
+
+| Windows x64 package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Installer | 60,102,728 | `fad639b044a0bce65e25b98abe83accf4697df2b08e944edfb92ed08320a49a9` |
+| Portable ZIP | 74,550,214 | `185c9ce82e09bb6b2b1e44d2236548989f18749c8fa095e57a81919329d759a5` |
+
+### Production acceptance
+
+The installed updater discovered and verified the package in About.
+Transaction `830e1c4a2a814638a1450cb32499db7c` recorded shutdown,
+exit code 0 before installer startup, visible installation progress,
+verification, and an automatic restart in the same Windows user session
+at the original privilege level. The transaction and completion receipt are
+retained in `evidence/v0.8.2.3_beta-production/`. The sole running
+instance matched all 298 archived payload files, and the launcher exited.
+
+The five machines resumed monitoring. The production Explorer hover
+recorded a deliberately changed order, the visible version label, and the
+Rain and Phantom checkbox selection. All four remote SSH sessions remained
+connected while only two machines were displayed. The settings and SSH
+host key files retained their hashes. Credentials and startup settings were
+preserved. Persistent recording and automatic update checks remained off.
+The installed updater verified v0.8.2.3_beta as current.
+
+The disposable installer test reclaimed 496,926,848 bytes and the
+independent public verification reclaimed 134,655,353 bytes. Redundant
+local screenshots totaling 1,139,355 bytes were removed. The 20 feature
+screenshots and production receipts remain as evidence.
 
 ## v0.6.2.3_beta — Hover monitor version and window placement
 
@@ -79,8 +147,10 @@ Saved credentials remained accessible and automatic checks remained off.
 Persistent disk recording was already off. The shipped client verified
 that the public release matched the installed version.
 
-The signed packages remain under `release/v0.6.2.3_beta/`. Native
-screenshots are under `evidence/v0.6.2.3_beta-native/`. The live screenshot,
+The signed packages remain available from Jenkins and Gitea. The two
+superseded local binaries totaling 134,860,437 bytes were removed after
+the feature release passed. Native screenshots are under
+`evidence/v0.6.2.3_beta-native/`. The live screenshot,
 installer log, process verification and completion receipt are retained
 under `evidence/v0.6.2.3_beta-production/`. The independent anonymous
 verification removed 134,862,477 bytes of temporary downloads. Jenkins

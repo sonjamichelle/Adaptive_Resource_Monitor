@@ -2,8 +2,9 @@
 
 Adaptive Resource Monitor is a native Windows tray utility for CPU, GPU,
 RAM, VRAM, storage and network history. It combines the six resources into
-one dynamic icon by default. Click the icon to pin the monitor or open the
-expanded window from its context menu. Windows may initially place the icon
+one dynamic icon by default. Click the icon to show the hover monitor, then
+use its **Pin/Unpin** button to keep it open. Open the expanded window from
+the icon's context menu. Windows may initially place the icon
 in the taskbar overflow. Move it into the visible notification area for
 continuous access.
 
@@ -26,7 +27,10 @@ monitor shows separate graph sections in your saved order. Hidden machines
 continue collecting telemetry. The primary tray icon keeps its configured
 machine.
 
-Drag machine headers in either monitor or rows in **Manage Remote Targets**
+The headers show local Windows and Linux remote uptime. Disconnected machines
+label a previously captured uptime as the last sample.
+
+Drag machine cards in either monitor or rows in **Manage Remote Targets**
 to change the shared order. Press Escape to cancel a drag. ARM saves each
 drop and checkbox change immediately. Network IN and OUT have configurable
 colors and share one throughput scale per machine.
@@ -54,4 +58,16 @@ See [BUILD.md](BUILD.md) for Windows build and verification commands,
 [TELEMETRY_PROVIDERS.md](TELEMETRY_PROVIDERS.md) for metric definitions,
 [REMOTE_MONITORING.md](REMOTE_MONITORING.md) for SSH setup, and
 [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md) for verification status.
+
+## Software License
+
+Adaptive Resource Monitor is source-available software distributed under the
+Design Creations Attribution-NonCommercial-ShareAlike License v1.0. Users may
+freely use, study, modify and extend the application for private non-commercial
+purposes. Non-commercial redistribution of unmodified releases is permitted
+with attribution. Public distribution of derivatives requires prior written
+permission from SLT Design Creations, LLC. [Complete license](LICENSE.md)
+
+Original developer Sonja M Thomas. Copyright 2010-2026 SLT Design Creations,
+LLC. [Design Creations website](https://www.designcreations.us/)
 

@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 import base64
 import csv
 import hashlib
@@ -295,7 +302,9 @@ class LinuxParser:
         sensors = [row for row in sections["cpusensor"] if len(row) == 2]
         temperatures = [val for temp, _ in sensors if (val := num(temp, .001)) is not None]
         powers = [val for _, power in sensors if (val := num(power, .000001)) is not None]
+        uptime = next((num(row[0]) for row in sections["uptime"] if len(row) == 1), None)
         items.extend(readings(machine, stamp, TOTAL, {
+            "system.uptime": (uptime if uptime is not None and uptime >= 0 else None, "s"),
             "cpu.util": (usage(*cpu_values.get("cpu", (None, None))), "%"),
             "cpu.physical": (len(core_map) or None, "count"),
             "cpu.logical": (sum(key != "cpu" for key in cpu_values) if cpu_values else None, "count"),

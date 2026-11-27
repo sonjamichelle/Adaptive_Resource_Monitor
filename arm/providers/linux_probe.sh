@@ -1,9 +1,19 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 # The client sends a single dot for each observation over the existing channel.
 export LC_ALL=C
 os=$(uname -sr)
 nvidia=$(command -v nvidia-smi || :)
 sample() {
     printf '@arm-begin\nos\t%s\n' "$os"
+    if read -r uptime _ < /proc/uptime; then
+        printf 'uptime\t%s\n' "$uptime"
+    fi
     while read -r name value; do
         case "$name" in
             cpu|cpu[0-9]*) printf 'cpu\t%s\t%s\n' "$name" "$value";;

@@ -5,7 +5,23 @@ psutil, Paramiko and its cryptographic dependencies, NVIDIA's NVML Python
 bindings, Tcl/Tk for the maintenance window, and the PyInstaller bootloader.
 The NVIDIA display driver's NVML DLL
 is provided by the driver. License text distributed by the dependency wheels
-is included in this directory.
+is included in this directory. NVIDIA's Python wrapper carries its BSD notice
+in its source header. Setup and the portable archive include that notice
+separately. [NVIDIA Python wrapper source distribution](https://pypi.org/project/nvidia-ml-py/13.615.71/#files)
+
+DC-ANCSA applies to original ARM material. Bundled dependencies remain under
+their upstream terms. The notice files include the PSF and Tk terms, the
+PyInstaller bootloader exception, Paramiko's LGPL terms, and the distinct
+notices for the cryptography, NaCl, bcrypt, CFFI and other Python components.
+[Paramiko source distribution](https://pypi.org/project/paramiko/4.0.0/#files)
+
+The OpenSSL license text is identical in the two bundled runtime versions.
+The Microsoft runtime stays under Microsoft's applicable redistribution
+terms. The SQLite library distributed with CPython is public domain.
+[OpenSSL 3.0.16](https://github.com/openssl/openssl/tree/openssl-3.0.16)
+[OpenSSL 4.0.2](https://github.com/openssl/openssl/tree/openssl-4.0.2)
+[Tcl 8.6.15](https://github.com/tcltk/tcl/tree/core-8-6-15)
+[SQLite copyright](https://www.sqlite.org/copyright.html)
 
 The Qt and PySide 6.11.2 runtime is distributed under the GNU Lesser General
 Public License v3. The accompanying LGPL v3 and GPL v3 texts are in the

@@ -1,5 +1,13 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Anonymous update discovery and verified downloads from the ARM release repository."""
 from dataclasses import dataclass
+from hashlib import sha256
 import json
 import os
 from pathlib import Path
@@ -9,7 +17,8 @@ from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .update_release import (
-    MANIFEST, MAX_MANIFEST_SIZE, Release, UpdateError, eligible, exclusion_reason, source_config, verify_file, verify_manifest,
+    LICENSE_FILE, MANIFEST, MAX_MANIFEST_SIZE, Release, UpdateError, eligible, exclusion_reason,
+    software_license_digest, source_config, verify_file, verify_manifest,
 )
 from .version import VERSION, version_key
 
@@ -71,6 +80,16 @@ class ReleaseClient:
         if size is not None and matches[0].get("size") != size:
             raise UpdateError(f"Release attachment size is inconsistent: {name}")
         return expected
+
+    def read_license(self, release):
+        expected = software_license_digest(release.notes)
+        if expected is None:
+            raise UpdateError("The release has no signed software license checksum")
+        source = f"{self.base}/{self.repository}/raw/tag/{quote(release.version, safe='')}/{LICENSE_FILE}"
+        data = self.read(source, MAX_MANIFEST_SIZE)
+        if sha256(data).hexdigest() != expected:
+            raise UpdateError("The software license does not match the signed release checksum")
+        return data.decode("utf-8-sig")
 
     def check(self, installed, kind):
         rows = {}

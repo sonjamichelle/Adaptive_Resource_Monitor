@@ -35,6 +35,8 @@ class Providers(unittest.TestCase):
             sleep(.85)
             second = [p.sample() for p in providers]
             self.assertTrue(reading(second[0], "cpu.util").valid)
+            self.assertGreater(reading(second[0], "system.uptime").value,
+                               reading(first[0], "system.uptime").value)
             self.assertTrue(reading(second[1], "ram.util").valid)
             for sample in second:
                 self.assertTrue(all(r.timestamp == sample.timestamp for r in sample.readings))
@@ -48,6 +50,7 @@ class Providers(unittest.TestCase):
         second, _ = parser.parse(FRAME.format(boot=1, busy=200), 11, 11)
         self.assertEqual(os_label, "Linux fixture")
         self.assertIsNone(reading(first, "cpu.util").value)
+        self.assertEqual(reading(first, "system.uptime").value, 12345.67)
         self.assertEqual(reading(second, "cpu.util").value, 100)
         self.assertEqual(reading(second, "disk.read").value, 51200)
         self.assertEqual(reading(second, "net.total").value, 200)
@@ -55,6 +58,8 @@ class Providers(unittest.TestCase):
         self.assertEqual(reading(second, "gpu.vram_pct").value, 25)
         reset, _ = parser.parse(FRAME.format(boot=2, busy=400), 12, 12)
         self.assertIsNone(reading(reset, "disk.read").value)
+        invalid, _ = parser.parse(FRAME.format(boot=2, busy=500).replace("12345.67", "-1"), 13, 13)
+        self.assertIsNone(reading(invalid, "system.uptime").value)
 
     def test_directional_deltas_skip_reboot_reset_and_interface_replacement(self):
         def frame(boot, rx, tx, index):

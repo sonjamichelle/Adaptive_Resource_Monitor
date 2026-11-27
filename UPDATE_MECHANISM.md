@@ -20,6 +20,14 @@ returns a complete response, ARM starts the file over. **Install Later**
 keeps the package and its ready-to-install notice. **Install Update** asks for
 approval.
 
+Starting with v0.8.3.3_beta, the signed release notes include the SHA-256
+of the exact source license. When that hash matches the installed license,
+the usual install confirmation opens. When the license differs, ARM
+retrieves the file from the version's Gitea tag, verifies the signed hash
+and shows the complete terms for explicit acceptance before shutdown.
+Cancel leaves the verified package available. Earlier clients retain their
+existing signed update confirmation when first upgrading to this version.
+
 ## Release contract
 
 The configured source is the [ARM Releases page](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases).
@@ -56,6 +64,8 @@ in place. Before restarting ARM, the launcher verifies the new executable,
 version and build metadata. The launcher restarts ARM in the invoking user
 session with the previous tray-only or expanded presentation. The restarted
 process signals readiness before ARM reports success and offers the changelog.
+Opening the changelog clears the transient success banner and retains the
+completion receipt.
 An upgrade initiated by v0.6.1.1 uses that version's launcher and progress
 behavior. The newer application still reads its completion receipt.
 

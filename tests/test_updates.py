@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from arm.branding import APP_MODEL_ID
 from arm.config import Settings
 from arm.update_client import ReleaseClient, UpdateCancelled
-from arm.update_release import MANIFEST, UpdateError, artifact_name, canonical, verify_manifest
+from arm.update_release import LICENSE_NOTE, MANIFEST, UpdateError, artifact_name, canonical, verify_manifest
 from arm.update_state import Phase, notice, notify_once, result_for, transaction_from_ack
 from arm.update_worker import unpack_portable, wait_parent
 from arm.version import VERSION, version_key
@@ -83,6 +83,20 @@ class UpdateTests(unittest.TestCase):
         bad = self.metadata()
         bad["packages"]["portable"][field] = value
         return verify_manifest(self.sign(bad), self.public, NEW)
+
+    def test_update_license_must_match_the_signed_release(self):
+        new_license = b"# Distinct license terms\n"
+        meta = self.metadata()
+        with self.assertRaisesRegex(UpdateError, "no signed software license"):
+            self.client.read_license(verify_manifest(self.sign(meta), self.public))
+        meta["notes"] += f"\n\n{LICENSE_NOTE}{sha256(new_license).hexdigest()}"
+        release = verify_manifest(self.sign(meta), self.public)
+        with patch.object(self.client, "read", return_value=new_license) as read:
+            self.assertEqual(self.client.read_license(release), new_license.decode())
+            self.assertTrue(read.call_args.args[0].endswith(f"/raw/tag/{NEW}/LICENSE.md"))
+        with patch.object(self.client, "read", return_value=b"Changed text"):
+            with self.assertRaisesRegex(UpdateError, "does not match"):
+                self.client.read_license(release)
 
     def test_discovery_verified_current_and_older(self):
         for version in (NEW, VERSION, OLD):

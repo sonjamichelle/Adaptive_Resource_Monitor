@@ -257,6 +257,9 @@ def validate_packages(release, work, result, upgrade_from=None, captures=None, p
     assert json.loads((payload / "BUILD.json").read_text())["version"] == VERSION
     assert VERSION in (payload / "CHANGELOG.md").read_text(encoding="utf-8")
     assert (payload / "Third-party notices" / "README.md").is_file()
+    assert (payload / "LICENSE.md").read_bytes() == (ROOT / "LICENSE.md").read_bytes()
+    assert "Redistributions in binary form" in (
+        payload / "Third-party notices" / "NVIDIA-NVML-Python-LICENSE.txt").read_text(encoding="utf-8")
     for name in ("LGPL-3.0-only.txt", "GPL-3.0-only.txt"):
         assert (payload / "Third-party notices" / name).read_bytes() == (
             ROOT / "packaging" / "qt-notices" / name).read_bytes()
@@ -377,6 +380,30 @@ def verify_branding(session, results, captures=None):
     assert not session.expanded.monitor_visible
     assert not session.about_page.app_image.picture.isNull()
     assert not session.about_page.company_image.picture.isNull()
+    assert session.about_page.view_license.isEnabled()
+    assert any(label.text() == "DC-ANCSA v1.0" for label in session.about_page.findChildren(QLabel))
+    seen_geometry = []
+
+    def inspect_license():
+        from arm.software_license import LicenseDialog
+        dialog = session.qt.activeModalWidget()
+        assert isinstance(dialog, LicenseDialog)
+        content = dialog.browser.toPlainText()
+        assert "Design Creations Attribution-NonCommercial-ShareAlike License" in content
+        assert "Additional permissions and reserved rights" in content
+        assert dialog.browser.isReadOnly() and dialog.browser.verticalScrollBar().maximum() > 0
+        if not seen_geometry:
+            dialog.move(80, 90)
+            dialog.resize(650, 530)
+        else:
+            assert dialog.geometry() == seen_geometry[0]
+        seen_geometry.append(dialog.geometry())
+        dialog.reject()
+
+    for _ in range(2):
+        QTimer.singleShot(0, inspect_license)
+        session.about_page.view_license.click()
+    assert len(seen_geometry) == 2
     session.about_page.open_link("THIRD_PARTY.md")
     assert session.about_page.document_group.title() == "Third-party Notices"
     assert "CPython" in session.about_page.browser.toPlainText()
@@ -517,6 +544,15 @@ def verify_update_notices(session, wait_for, results, captures):
             wait_for(lambda: update.job is None)
         assert not menu.update.isVisible() and expanded.update_banner.isHidden()
         assert hover.popup_size() == initial_size
+        update.accept_outcome((Phase.SUCCESS, "ARM installed and restarted."))
+        confirmation = update.root / "confirmation.json"
+        before = confirmation.read_bytes()
+        assert hover.update_banner.label.text() and expanded.update_banner.label.text()
+        assert hover.update_banner.action.text() == "View Changelog"
+        hover.update_banner.action.click()
+        assert session.about_page.document_group.title() == "Change Log"
+        assert hover.update_banner.isHidden() and expanded.update_banner.isHidden()
+        assert confirmation.read_bytes() == before
         expanded.close()
     finally:
         fixture.doCleanups()
@@ -662,15 +698,15 @@ def verify_machine_display(session, wait_for, results, captures):
     app.processEvents()
 
     viewport = hover.simultaneous.viewport()
-    local_header = hover.sections[local].title
+    local_card = hover.sections[local].cards["ram"].plot
     section_objects = dict(hover.sections)
     viewport_origin = lambda: viewport.mapToGlobal(QPoint(viewport.width() // 2, 3))
     point = lambda w: w.mapToGlobal(w.rect().center())
     bottom = viewport.mapToGlobal(QPoint(viewport.width() // 2, viewport.height() - 3))
     before = persisted()
-    drag_to(hover.drag, local_header, point(local_header), bottom, cancel=True)
+    drag_to(hover.drag, local_card, point(local_card), bottom, cancel=True)
     assert persisted() == before
-    drag_to(hover.drag, local_header, point(local_header), bottom, scroll_to_end=True)
+    drag_to(hover.drag, local_card, point(local_card), bottom, scroll_to_end=True)
     assert hover.displayed == (rain, phantom, lamp, phantomnet, local)
     assert persisted().order == hover.displayed and hover.sections == section_objects
     assert tuple(tray.entries) == hover.displayed
@@ -856,8 +892,13 @@ def evaluate_app(work, results, short=False, captures=None):
         assert len(set(modes.values())) == 4, modes
         results["rendered_modes"] = modes
         assert ConfigStore(root / "settings.json").load().mode == "Composite"
-        menu.pin.trigger()
+        session.activate_icon(LOCAL, QSystemTrayIcon.ActivationReason.Trigger)
+        assert session.popup.isVisible() and not session.popup.pinned
+        assert all(action.text() != "Pin Resource Monitor" for action in menu.actions())
+        session.popup.pin.click()
         assert session.popup.isVisible() and session.popup.pinned
+        session.activate_icon(LOCAL, QSystemTrayIcon.ActivationReason.Trigger)
+        assert session.popup.pinned
         assert sum(card.isVisible() for card in session.popup.cards.values()) == len(RESOURCES)
         wait_for(lambda: session.popup.frameGeometry().isValid())
         if not short:

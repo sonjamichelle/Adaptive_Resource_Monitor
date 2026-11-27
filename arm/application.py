@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 from dataclasses import replace
 from functools import partial
 import logging
@@ -215,7 +222,7 @@ class Application(QObject):
             icon.activated.connect(partial(self.activate_icon, machine))
             icon.messageClicked.connect(lambda: self.open_update(self.update_notice_changelog))
             self.icons[machine] = icon
-            self.menus[machine] = TrayMenu(self, machine)
+            self.menus[machine] = TrayMenu(self)
             self.menus[machine].theme(self.brand_colors)
             self.set_menu_update(self.menus[machine])
             icon.setContextMenu(self.menus[machine])
@@ -286,17 +293,13 @@ class Application(QObject):
 
     def activate_icon(self, machine, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            self.toggle_pin(machine)
+            if not self.popup.pinned:
+                self.hover.show(machine)
         elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.open_expanded()
 
-    def toggle_pin(self, machine):
-        self.hover.pin(not self.popup.pinned or self.hover.anchor != machine, machine)
-        self.sync_menus()
-
     def set_pin(self, enabled):
         self.hover.pin(enabled)
-        self.sync_menus()
 
     def render(self):
         now = time()

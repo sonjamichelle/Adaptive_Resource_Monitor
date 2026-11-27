@@ -33,6 +33,9 @@ WizardStyle=modern
 SetupIconFile={#AppIcon}
 WizardImageFile={#WizardImage}
 WizardSmallImageFile={#WizardEmblem}
+#ifdef LicenseAgreement
+LicenseFile={#LicenseAgreement}
+#endif
 UninstallDisplayIcon={app}\{#Executable}
 CloseApplications=no
 RestartApplications=no
@@ -83,6 +86,11 @@ end;
 function ArmUpdate: Boolean;
 begin
   Result := ExpandConstant('{param:ARMUPDATE|0}') = '1';
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (PageID = wpLicense) and ArmUpdate;
 end;
 
 procedure CurUninstallStepChanged(Step: TUninstallStep);

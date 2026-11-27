@@ -1,3 +1,10 @@
+# Adaptive Resource Monitor
+# Original developer: Sonja M Thomas
+# Copyright 2010-2026 SLT Design Creations, LLC
+# Licensed under the Design Creations Attribution-NonCommercial-ShareAlike License v1.0.
+# See LICENSE.md for complete license terms.
+# https://www.designcreations.us/
+
 """Asynchronous Workshop-style update controls for the About tab."""
 from datetime import datetime
 import json
@@ -11,8 +18,10 @@ from PySide6.QtWidgets import (
     QPushButton, QVBoxLayout,
 )
 
+from .branding import document
+from .software_license import LicenseDialog
 from .update_client import ReleaseClient, UpdateCancelled, write_atomic
-from .update_release import MANIFEST, UpdateError, eligible, verify_file, verify_manifest
+from .update_release import LICENSE_FILE, MANIFEST, UpdateError, eligible, sha256, software_license_digest, verify_file, verify_manifest
 from .update_state import Phase, notice, notify_once, read_json, result_for
 from .version import VERSION, version_key
 
@@ -260,6 +269,16 @@ class UpdatePanel(QGroupBox):
             self.downloaded = value
             self.fields["Verification"].setText("Manifest signature and package SHA-256 verified")
             self.status.setText("Verified package saved. Install it when ready.")
+        elif operation == "license":
+            self.job = "license-review"
+            dialog = LicenseDialog(self, self.root.parent, value, review=True)
+            accepted = dialog.exec()
+            dialog.deleteLater()
+            self.job = None
+            if accepted:
+                self.begin_install()
+            else:
+                self.status.setText("Installation deferred. The verified package is still available.")
         elif operation == "prepare":
             self.plan = value
             self.elapsed = 0
@@ -295,10 +314,27 @@ class UpdatePanel(QGroupBox):
     def install_now(self):
         if not self.downloaded or self.job or self.plan or not self.installable:
             return
+        release = self.release
+        expected = software_license_digest(release.notes)
+        if expected is None:
+            self.status.setText("The release has no signed software license checksum. Installation deferred.")
+            return
+        try:
+            already_installed = sha256(document(LICENSE_FILE)) == expected
+        except OSError as exc:
+            LOG.warning("Could not read the installed software license: %s", exc)
+            already_installed = False
+        if not already_installed:
+            self.status.setText("Checking the updated software license…")
+            self.start("license", lambda: self.client.read_license(release))
+            return
         if QMessageBox.question(self, "Install Update", f"Install {self.release.version} and restart Adaptive Resource Monitor?",
                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                                 QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
+        self.begin_install()
+
+    def begin_install(self):
         from .about import installation
         from .update_worker import prepare
         release, artifact, target = self.release, self.downloaded, installation()[1]
@@ -310,6 +346,11 @@ class UpdatePanel(QGroupBox):
 
     def defer_install(self):
         self.status.setText("Installation deferred. The verified package will be available from About.")
+
+    def dismiss_success_notice(self):
+        if self.success_banner:
+            self.success_banner = False
+            self.set_controls()
 
     def poll_worker(self):
         self.elapsed += 250
