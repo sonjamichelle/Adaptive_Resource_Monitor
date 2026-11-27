@@ -250,7 +250,7 @@ The [roadmap](ROADMAP.md) outlines a native Linux desktop app and a secure Windo
 
 Adaptive Resource Monitor is **source-available** under the **Design Creations Attribution-NonCommercial-ShareAlike License v1.0 (DC-ANCSA v1.0)**. It permits non-commercial use, study and private modification. Unmodified releases may be redistributed for non-commercial use under the license with attribution, the applicable notices and access to corresponding source. Public distribution of derivatives and commercial use require prior written permission. Authorized derivatives are subject to the applicable share-alike and source requirements.
 
-[Read the complete LICENSE.md](LICENSE.md) · [Third-party notices](packaging/THIRD_PARTY.md)
+[Read the complete LICENSE.md](LICENSE.md) · [Register Derivative](https://www.designcreations.us/software/register-derivative.php?product=adaptive-resource-monitor) · [Third-party notices](packaging/THIRD_PARTY.md)
 
 <details>
 <summary>Offline license viewer in About</summary>
@@ -264,7 +264,7 @@ Adaptive Resource Monitor is **source-available** under the **Design Creations A
 [Report a Bug](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yml) · [Request a Feature](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yml) ·
 [Get Support](SUPPORT.md) · [View Development Roadmap](ROADMAP.md) ·
 [Browse Open Issues](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues?q=is%3Aissue+is%3Aopen) ·
-[Request Derivative Distribution Permission](CONTRIBUTING.md#derivative-distribution-permission)
+[Register Derivative](https://www.designcreations.us/software/register-derivative.php?product=adaptive-resource-monitor)
 
 Browse existing issues before creating a report. Use the matching form for hardware, remote monitoring, updates, performance or documentation. Submit proposed patches directly to the project for review. [Contribution guide](CONTRIBUTING.md) · [Issue and release workflow](ISSUE_MANAGEMENT.md)
 
