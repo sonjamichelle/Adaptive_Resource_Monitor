@@ -33,7 +33,8 @@ Adaptive Resource Monitor (ARM) is a lightweight real-time monitor for Windows. 
 [Report a Bug](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yml) · [Request a Feature](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yml) · [Get Support](SUPPORT.md) · [Browse Open Issues](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues?q=is%3Aissue+is%3Aopen)
 
 [GitHub repository](https://github.com/sonjamichelle/Adaptive_Resource_Monitor) · [GitHub releases](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/releases) ·
-[Gitea development repository](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor) · [Repository synchronization status](REPOSITORY_SYNC.md)
+[Development project](https://github.com/users/sonjamichelle/projects/1) ·
+[Gitea development repository](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor) · [Repository synchronization](REPOSITORY_SYNC.md)
 
 ## Download
 
