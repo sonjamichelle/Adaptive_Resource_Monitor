@@ -18,7 +18,11 @@ The installed ARM's Report Issue and About documentation links retain their curr
 
 ## Maintainer operations
 
-Use the native service status and journal on Phantom to inspect reconciliation time, rate limits, pending accepted events and unresolved conflicts. Signal `USR1` to check source, Wiki and issue metadata immediately. Release verification runs in a separate worker. GitHub delivers signed webhooks. Gitea changes are discovered by periodic reconciliation because Forgejo's webhook host policy refuses the private address returned by local DNS. The receiver checks each accepted delivery's HMAC signature, repository ID and delivery identity before recording a wakeup. The service does not execute issue, comment, PR or Wiki content.
+GitHub and Gitea both send signed webhooks that trigger reconciliation. Forgejo's outbound webhook policy explicitly permits the public hostname used by the ARM HTTPS receiver, including when Phantom resolves that hostname to its LAN address. The policy preserves the existing permitted hosts and normal TLS certificate verification. A signed release event wakes the separate release verification worker. Five-minute reconciliation covers missed deliveries and changes for which a platform does not emit webhooks.
+
+The receiver verifies each delivery's HMAC signature, repository ID and delivery identity before recording it. An identical redelivery keeps one queue record. Reuse of that delivery ID with changed content is rejected. Sync compares current repository state so a mirrored push creates no further write when both refs already match. In a live branch test, Gitea to GitHub took 6.38 seconds and GitHub to Gitea took 14.23 seconds, measured from completion of the origin push to the first observation of the matching destination ref.
+
+Use the native service status and journal on Phantom to inspect reconciliation time, rate limits, pending deliveries and unresolved conflicts. Signal `USR1` to check source, Wiki and issue metadata immediately. The service does not execute issue, comment, PR or Wiki content.
 
 Resolve branch divergence by reviewing both tips and making a merge that preserves both histories. Push a fast-forward from both sides and recheck equivalence. Resolve conflicting issue fields with the authors or update both versions deliberately. Leave deleted or redacted material in its originating platform's moderation workflow and report a sensitive exposure privately. The bridge does not propagate deletions.
 
