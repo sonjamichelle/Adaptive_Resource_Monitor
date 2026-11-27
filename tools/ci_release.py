@@ -34,6 +34,7 @@ from arm.update_release import (
 )
 from arm.update_worker import unpack_portable, verify_executable
 from arm.version import VERSION, version_key
+from tools.readme_release import update_public_readme
 
 CHECKSUMS = "SHA256SUMS.txt"
 NOTES = "RELEASE_NOTES.md"
@@ -208,6 +209,7 @@ def publish(folder, version, commit, number):
         raise UpdateError("An existing version tag points at a different commit")
     if row and not row["draft"]:
         api.verify_downloads(folder, row, release, True)
+        update_public_readme(api, release)
         print(f"Version {version} is already public with the exact selected bytes")
         return
     if row is None:
@@ -233,6 +235,7 @@ def publish(folder, version, commit, number):
         api.request(address, {"draft": True}, "PATCH")
         raise
     print(f"Published and anonymously verified {api.client.base}/{api.client.repository}/releases/tag/{tag}")
+    update_public_readme(api, release)
 
 
 def main():

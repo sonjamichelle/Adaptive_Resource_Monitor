@@ -24,6 +24,20 @@ Existing version tags must point to the same commit. A public release for that
 version is accepted only if its attachments match the pinned archive. Use a
 new authorized application version for any change to its released bytes.
 
+## Public download links
+
+After anonymous verification succeeds, the publication job refreshes the
+public version, badges, download links and package sizes in README.md if the
+selected archive is the newest verified release. This uses the released
+manifest and the verified public attachments. VERSION.md continues to govern
+development and build versioning.
+
+If the README change fails, the verified release stays available. Resolve the
+documentation error, then retry authorized publication with the same pinned
+build. The job verifies the existing attachments before refreshing the README.
+A documentation-only update takes the checkout and version-validation path in
+Build and Archive. It skips package creation, signing and archival.
+
 Before publishing a channel promotion, verify discovery and eligibility
 with the already-shipped updater. The v0.6.2.1_alpha updater requires an
 Alpha corrective release before it can discover Beta. Starting with
