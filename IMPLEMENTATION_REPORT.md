@@ -1,5 +1,79 @@
 # Adaptive Resource Monitor implementation report
 
+## v0.6.2.2_beta — Beta promotion
+
+Alpha production acceptance and the signed same-number compatibility
+check passed before the Beta build. The promotion kept the four numerical
+counters at `0.6.2.2`. All 34 regression tests and the isolated native
+Windows verification passed. Build and Archive #10 used commit
+`5e8ea74be3fd94156bdc7a0810cfcc8eaac739f0`. Publish Release #10 published
+its artifacts as a separate Gitea prerelease. The earlier Alpha releases
+remain public.
+[Build #10](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/10/)
+[Publication #10](https://phantom.zapto.org:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/10/)
+[Public Beta](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.6.2.2_beta)
+
+All seven Beta attachments matched anonymously by size and SHA-256. The
+Ed25519 signature, version, x64 PE metadata, portable package and build
+receipt verified. The installed corrective Alpha client verified this
+public Beta as eligible.
+
+| Windows x64 package | Bytes | SHA-256 |
+| --- | ---: | --- |
+| Installer | 60,165,231 | `305cd316547245eaf0d77703f1b4be93404f7762fa4839b4b4a693c13d3bd78f` |
+| Portable ZIP | 74,682,861 | `e1ee75e4218594feb7c1735cf1853739f18e5560df37666e25b186216077657a` |
+
+### Production Beta acceptance
+
+The installed corrective Alpha displayed the signed Beta as available, then
+ready to install after the package download. ARM recorded one availability
+notification for the Beta. Install Later kept the same verified bytes and
+timestamp. Installation began through the installed application's controls.
+
+Transaction `04ef6d0d8a3745bd8629d8945a6f2349` recorded the old process
+acknowledging shutdown and exiting at 8:34:40.683 PM CST with exit code 0.
+The installer log was created at 8:34:41.896 PM. The independent progress
+window was visible during installation. The same Windows user, session and
+non-elevated privilege level were retained. The automatic restart reported
+v0.6.2.2_beta, persisted its completion receipt and displayed the success
+confirmation. Windows registration and About reported Beta. The 298
+installed payload files matched build #10. The restarted process remained
+the sole ARM instance and the maintenance launcher exited.
+
+The production settings and SSH host key files matched their pre-update
+hashes. All credential references remained accessible, and startup,
+Windows notification and automatic update-check preferences were preserved.
+Persistent recording was off before both updates. All Systems displayed
+four independent histories with fresh Local Machine, Rain, Phantom and
+LAMP samples and distinct network IN and OUT readings. All four sample
+timestamps advanced during a 20-second observation. Explorer returned a
+live tray icon with six distinct rendered frames. The installed About
+check verified Beta as current. The acceptance checks covered 169 seconds
+after the automatic Beta restart.
+
+Both production self-updates passed. Adaptive Resource Monitor is publicly
+released and running in production as v0.6.2.2_beta. The production
+screenshots, shutdown acknowledgement, installer log and completion
+receipts are retained locally under `evidence/v0.6.2.2_alpha-production`
+and `evidence/v0.6.2.2_beta-production`.
+
+### Separate window changes and cleanup
+
+The local hover monitor shows the installed version on the status row below
+the controls. The expanded window keeps the existing About layout, fits
+inside the monitor's work area, and restores its saved size and position.
+Private native Windows checks verified the hover label at 300 and 500 pixels
+and verified exact geometry restoration, oversized window handling, and
+off-screen placement recovery. These are separate source changes after
+the pinned Beta commit.
+
+Anonymous Beta readback removed 134,850,358 bytes of duplicate downloads.
+The two isolated window checks removed 6,220 bytes of temporary data.
+A final isolated GUI regression passed and removed 55,800 bytes of test
+data. A 719-byte incomplete capture was discarded. Jenkins cleared its build
+and publication workspaces. The verified local release archives, selected
+production screenshots and actual updater logs were retained.
+
 ## v0.6.2.2_alpha — Update channel correction
 
 Windows Program Compatibility Assistant recorded the archived

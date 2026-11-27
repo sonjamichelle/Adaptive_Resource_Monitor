@@ -1,7 +1,7 @@
 from time import time, strftime, localtime
 
 from PySide6.QtCore import QSize, Qt, QSignalBlocker, QTimer
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor, QGuiApplication, QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView, QComboBox, QFrame, QGridLayout, QHeaderView, QHBoxLayout, QLabel,
     QPushButton, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QTabWidget, QVBoxLayout, QWidget,
@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 
 from .graphs import Plot, resource_series, selected_resource
 from .model import ALL, LOCAL, NETWORK, TOTAL, Connection, INTERVALS, RANGES, RESOURCES, format_value
+from .version import VERSION
 
 METRIC_NAMES = {
     "cpu.util": "CPU utilization", "cpu.frequency": "Frequency", "cpu.temperature": "CPU temperature",
@@ -234,7 +235,15 @@ class Monitor(QWidget):
         layout.setContentsMargins(8, 7, 8, 7)
         layout.setSpacing(4)
         layout.addLayout(top)
-        layout.addWidget(self.header)
+        if expanded:
+            layout.addWidget(self.header)
+        else:
+            status = QHBoxLayout()
+            status.addWidget(self.header, 1)
+            version = QLabel(VERSION, textFormat=Qt.TextFormat.PlainText)
+            version.setAccessibleName(f"Installed version {VERSION}")
+            status.addWidget(version, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            layout.addLayout(status)
         self.single = QWidget()
         single_layout = QVBoxLayout(self.single)
         single_layout.setContentsMargins(0, 0, 0, 0)
@@ -274,9 +283,29 @@ class Monitor(QWidget):
 
     def show_page(self, about=False):
         self.tabs.setCurrentWidget(self.about_page if about else self.resource_page)
+        self.ensurePolished()
+        self.layout().activate()
         self.show()
+        self.fit_work_area()
         self.raise_()
         self.activateWindow()
+
+    def fit_work_area(self):
+        if self.isMinimized() or self.isMaximized() or self.isFullScreen():
+            return
+        frame = self.frameGeometry()
+        screen = QGuiApplication.screenAt(frame.center()) or self.screen()
+        if screen is None:
+            return
+        area = screen.availableGeometry()
+        if frame.width() > area.width() or frame.height() > area.height():
+            self.resize(self.width() - max(0, frame.width() - area.width()),
+                        self.height() - max(0, frame.height() - area.height()))
+            frame = self.frameGeometry()
+        x = max(area.left(), min(frame.left(), area.right() - frame.width() + 1))
+        y = max(area.top(), min(frame.top(), area.bottom() - frame.height() + 1))
+        if (x, y) != (frame.left(), frame.top()):
+            self.move(x, y)
 
     def brand_tabs(self, colors):
         self.tabs.setStyleSheet(f"""

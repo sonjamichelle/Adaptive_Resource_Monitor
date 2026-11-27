@@ -11,7 +11,7 @@ from time import time
 import winreg
 
 import psutil
-from PySide6.QtCore import QLockFile, QObject, QRect, QSignalBlocker, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QByteArray, QEvent, QLockFile, QObject, QRect, QSignalBlocker, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QDialog, QMessageBox, QSystemTrayIcon
 
@@ -27,6 +27,7 @@ from .model import ALL, LOCAL, TOTAL, Connection
 from .providers.ssh import update_host_key
 from .tray import HoverMonitor
 from .tray_menu import TrayMenu
+from .update_client import write_atomic
 from .version import NAME, VERSION
 from .views import METRIC_NAMES, Monitor
 
@@ -91,6 +92,19 @@ class Application(QObject):
         self.expanded = Monitor(self.dashboard, True, self.request_archive, self.open_expanded,
                                 self.set_pin, self.about_page)
         self.expanded.setWindowIcon(self.brand_icon)
+        self.window_geometry_file = self.root / "monitor-window.bin"
+        self.saved_window_geometry = None
+        try:
+            geometry = self.window_geometry_file.read_bytes()
+            if self.expanded.restoreGeometry(QByteArray(geometry)):
+                self.saved_window_geometry = geometry
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            LOG.warning("Could not read monitor window geometry: %s", exc)
+        self.window_geometry_timer = QTimer(self, singleShot=True, interval=350)
+        self.window_geometry_timer.timeout.connect(self.save_window_geometry)
+        self.expanded.installEventFilter(self)
         self.popup = Monitor(self.dashboard, False, self.request_archive, self.open_expanded, self.set_pin)
         for view in (self.popup, self.expanded):
             view.add_update_banner(self.open_update)
@@ -115,6 +129,29 @@ class Application(QObject):
         self.qt.styleHints().colorSchemeChanged.connect(self.change_brand_theme)
         self.change_brand_theme()
         self.configure()
+
+    def eventFilter(self, watched, event):
+        if watched is self.expanded:
+            if event.type() == QEvent.Type.Hide:
+                self.window_geometry_timer.stop()
+                self.save_window_geometry()
+            elif self.expanded.isVisible() and event.type() in (QEvent.Type.Move, QEvent.Type.Resize,
+                                                                QEvent.Type.WindowStateChange):
+                self.window_geometry_timer.start()
+        return super().eventFilter(watched, event)
+
+    def save_window_geometry(self):
+        if self.expanded.isMinimized():
+            return
+        if self.expanded.isVisible():
+            self.expanded.fit_work_area()
+        geometry = bytes(self.expanded.saveGeometry())
+        if geometry != self.saved_window_geometry:
+            try:
+                write_atomic(self.window_geometry_file, geometry)
+                self.saved_window_geometry = geometry
+            except OSError as exc:
+                LOG.warning("Could not save monitor window geometry: %s", exc)
 
     def change_brand_theme(self, scheme=None):
         scheme = scheme or self.qt.styleHints().colorScheme()
@@ -567,6 +604,7 @@ class Application(QObject):
         updates_stopped = self.about_page.updates.stop()
         for timer in (self.tray_timer, self.hover_timer, self.view_timer):
             timer.stop()
+        self.window_geometry_timer.stop()
         for icon in self.icons.values():
             icon.hide()
         self.popup.hide()
@@ -608,12 +646,13 @@ def main():
         state = presentation(transaction) if transaction else {}
         if state.get("expanded", not controller.settings.minimized):
             controller.open_expanded()
-            if geometry := state.get("geometry"):
+            if not controller.saved_window_geometry and (geometry := state.get("geometry")):
                 rect = QRect(*geometry)
                 if any(screen.availableGeometry().intersects(rect) for screen in app.screens()):
                     controller.expanded.setGeometry(rect)
             if state.get("about"):
                 controller.expanded.tabs.setCurrentWidget(controller.about_page)
+            controller.expanded.fit_work_area()
         if transaction:
             controller.about_page.updates.follow_restart(transaction)
         signal_ready(root)
