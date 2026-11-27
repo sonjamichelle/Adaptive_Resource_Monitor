@@ -1,0 +1,34 @@
+name: "Performance Issue"
+description: "Report sustained CPU, memory or responsiveness problems."
+labels: ["type/bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+  - type: input
+    id: version
+    attributes:
+      label: "Installed ARM version"
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: "Monitoring mode, target count and sampling intervals"
+    validations:
+      required: true
+  - type: textarea
+    id: observations
+    attributes:
+      label: "Measurement method, duration, results and expected behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: devices
+    attributes:
+      label: "Operating system, architecture and hardware models"
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Sanitized supporting diagnostics"

@@ -1,0 +1,59 @@
+name: "Remote Monitoring Issue"
+description: "Describe SSH or remote resource monitoring behavior."
+labels: ["type/bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+        Describe authentication by method only. Omit SSH credentials, hostnames, public and private addresses, key fingerprints, SSH users and other connection details. Use generic replacement names.
+  - type: input
+    id: version
+    attributes:
+      label: "Installed ARM version"
+    validations:
+      required: true
+  - type: textarea
+    id: os
+    attributes:
+      label: "Remote operating system"
+    validations:
+      required: true
+  - type: textarea
+    id: connection
+    attributes:
+      label: "Connection method and authentication method"
+    validations:
+      required: true
+  - type: textarea
+    id: resource
+    attributes:
+      label: "Affected resource category"
+  - type: textarea
+    id: behavior
+    attributes:
+      label: "Connection behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to reproduce"
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: "Sanitized diagnostic output"

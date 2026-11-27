@@ -7,7 +7,7 @@
 <!-- arm-public-header:start -->
 <!-- arm-public-version: v0.8.6.4_beta -->
 <p align="center"><strong>v0.8.6.4_beta · Beta</strong> · Windows x64 · DC-ANCSA v1.0</p>
-<p align="center"><a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta">Latest release</a> · <a href="#download">Download</a> · <a href="LICENSE.md">Read the license</a></p>
+<p align="center"><a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta">Latest release</a> · <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/releases">Download on GitHub</a> · <a href="LICENSE.md">Read the license</a></p>
 <p align="center">
   <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta"><img src="https://img.shields.io/badge/release-v0.8.6.4__beta-176B6D" alt="Latest release v0.8.6.4_beta"></a>
   <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.8.6.4_beta"><img src="https://img.shields.io/badge/development-Beta-A35C15" alt="Beta development status"></a>
@@ -22,17 +22,22 @@
 </p>
 
 <p align="center">
-  <a href="#download">Download</a> · <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Quick-Start">Quick Start</a> ·
-  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/User-Manual">User Manual</a> · <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki">Wiki</a> ·
-  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Reporting-Issues">Report Issue</a> ·
-  <a href="https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/wiki/Development-Roadmap">Development Roadmap</a> · <a href="LICENSE.md">License</a>
+  <a href="#download">Download</a> · <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki/Quick-Start">Quick Start</a> ·
+  <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki/User-Manual">User Manual</a> · <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki">Wiki</a> ·
+  <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues">Report Issue</a> ·
+  <a href="https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki/Development-Roadmap">Development Roadmap</a> · <a href="LICENSE.md">License</a>
 </p>
 
 Adaptive Resource Monitor (ARM) is a lightweight real-time monitor for Windows. Its live tray graph keeps recent activity visible while the app collects in the background. Hover for details, or open the expanded monitor to inspect measurements for the computers you choose. Each machine has its own resource history. Remote Linux hosts use an ordinary SSH connection and keep their credentials in Windows Credential Manager. You can choose the resources, colors, intervals, tray visualization and optional history recording. Application updates are cryptographically verified before installation.
 
-[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F02-feature-request.yaml) · [Get Support](SUPPORT.md) · [Browse Open Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues?state=open)
+[Report a Bug](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yml) · [Request a Feature](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yml) · [Get Support](SUPPORT.md) · [Browse Open Issues](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues?q=is%3Aissue+is%3Aopen)
+
+[GitHub repository](https://github.com/sonjamichelle/Adaptive_Resource_Monitor) · [GitHub releases](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/releases) ·
+[Gitea development repository](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor) · [Repository synchronization status](REPOSITORY_SYNC.md)
 
 ## Download
+
+Use [GitHub releases](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/releases) to download mirrored packages. The links below point to the authoritative signed Gitea release used by the current ARM updater.
 
 <!-- arm-public-downloads:start -->
 **v0.8.6.4_beta · Beta · Windows x64**
@@ -255,9 +260,9 @@ Adaptive Resource Monitor is **source-available** under the **Design Creations A
 
 ## Contributing and support
 
-[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=.gitea%2FISSUE_TEMPLATE%2F02-feature-request.yaml) ·
+[Report a Bug](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yml) · [Request a Feature](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yml) ·
 [Get Support](SUPPORT.md) · [View Development Roadmap](ROADMAP.md) ·
-[Browse Open Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues?state=open) ·
+[Browse Open Issues](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues?q=is%3Aissue+is%3Aopen) ·
 [Request Derivative Distribution Permission](CONTRIBUTING.md#derivative-distribution-permission)
 
 Browse existing issues before creating a report. Use the matching form for hardware, remote monitoring, updates, performance or documentation. Submit proposed patches directly to the project for review. [Contribution guide](CONTRIBUTING.md) · [Issue and release workflow](ISSUE_MANAGEMENT.md)

@@ -1,0 +1,24 @@
+name: "Documentation Issue"
+description: "Report unclear, missing or incorrect documentation."
+labels: ["type/documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+  - type: textarea
+    id: page
+    attributes:
+      label: "Page, section or link"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: "What needs correcting"
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: "Suggested wording or reproduction steps"

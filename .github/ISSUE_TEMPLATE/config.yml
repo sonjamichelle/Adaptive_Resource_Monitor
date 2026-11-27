@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security reporting
+    url: https://www.designcreations.us/contact/index.php
+    about: Use the private Design Creations contact process for vulnerabilities or exposed secrets.
+  - name: ARM Wiki
+    url: https://github.com/sonjamichelle/Adaptive_Resource_Monitor/wiki
+    about: Find installation guides, monitoring reference and troubleshooting.

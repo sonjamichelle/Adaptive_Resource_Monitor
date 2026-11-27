@@ -1,0 +1,28 @@
+name: "Feature Request"
+description: "Describe the problem and the proposed improvement."
+labels: ["type/feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+  - type: textarea
+    id: goal
+    attributes:
+      label: "Problem or goal"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives considered"
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "How to tell it is working"
