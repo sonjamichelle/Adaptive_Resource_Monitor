@@ -189,6 +189,8 @@ class UpdateTests(unittest.TestCase):
                 wait_parent(plan, target, self.work)
             (self.work / "closed.json").write_text(json.dumps({"pid": 10, "version": VERSION}))
             wait_parent(plan, target, self.work)
+            with patch("arm.update_worker.read_json", side_effect=[None, {"pid": 10, "version": VERSION}]):
+                wait_parent(plan, target, self.work)
         with patch("arm.update_worker.psutil.Process") as process:
             process.return_value.create_time.return_value = 1
             process.return_value.exe.return_value = str(target / "AdaptiveResourceMonitor.exe")

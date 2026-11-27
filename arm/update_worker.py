@@ -258,14 +258,14 @@ def wait_parent(data, target, plan_dir, timeout=75):
         try:
             parent = psutil.Process(data["parent"])
             alive = abs(parent.create_time() - data["created"]) <= 0.01
+            if alive and Path(parent.exe()).resolve() != target / EXE:
+                raise UpdateError("The requesting process is not this Adaptive Resource Monitor installation.")
         except psutil.NoSuchProcess:
             alive = False
         if not alive:
-            if not acknowledged:
+            if read_json(plan_dir / "closed.json") != expected:
                 raise UpdateError("ARM exited without confirming that settings and history were closed. Installation stopped.")
             return
-        if Path(parent.exe()).resolve() != target / EXE:
-            raise UpdateError("The requesting process is not this Adaptive Resource Monitor installation.")
         sleep(.25)
     raise UpdateError("ARM did not shut down in time. To retry, close any open ARM dialogs and start the update again.")
 
