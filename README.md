@@ -30,6 +30,8 @@
 
 Adaptive Resource Monitor (ARM) is a lightweight real-time monitor for Windows. Its live tray graph keeps recent activity visible while the app collects in the background. Hover for details, or open the expanded monitor to inspect measurements for the computers you choose. Each machine has its own resource history. Remote Linux hosts use an ordinary SSH connection and keep their credentials in Windows Credential Manager. You can choose the resources, colors, intervals, tray visualization and optional history recording. Application updates are cryptographically verified before installation.
 
+[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yaml) · [Get Support](SUPPORT.md) · [Browse Open Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues?state=open)
+
 ## Download
 
 <!-- arm-public-downloads:start -->
@@ -253,9 +255,14 @@ Adaptive Resource Monitor is **source-available** under the **Design Creations A
 
 ## Contributing and support
 
-Use the [issue tracker](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues) for bugs and feature ideas. Include the version, platform and steps to reproduce a problem. Proposed patches can be sent directly to the project for review. Private non-commercial experimentation and modification are welcome under the license.
+[Report a Bug](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yaml) · [Request a Feature](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yaml) ·
+[Get Support](SUPPORT.md) · [View Development Roadmap](ROADMAP.md) ·
+[Browse Open Issues](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/issues?state=open) ·
+[Request Derivative Distribution Permission](CONTRIBUTING.md#derivative-distribution-permission)
 
-Use the [Design Creations contact page](https://www.designcreations.us/contact/index.php) for security concerns or to request written permission to distribute a derivative. Include the proposed project name, intended use, source and distribution locations, and a support contact. Independently distributed derivatives are supported by their own maintainers. [License terms](LICENSE.md)
+Browse existing issues before creating a report. Use the matching form for hardware, remote monitoring, updates, performance or documentation. Submit proposed patches directly to the project for review. [Contribution guide](CONTRIBUTING.md) · [Issue and release workflow](ISSUE_MANAGEMENT.md)
+
+Use the private reporting procedure for security issues. Independently distributed derivatives are supported by their own maintainers. [Private security reporting](SECURITY.md#report-a-security-issue) · [License terms](LICENSE.md)
 
 ## Development
 

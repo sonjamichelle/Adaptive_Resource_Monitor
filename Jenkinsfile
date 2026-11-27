@@ -30,8 +30,9 @@ pipeline {
                     def changed = previous ==~ /[0-9a-f]{40}/
                         ? bat(returnStdout: true, script: "@git diff --name-only --no-renames ${previous} ${env.ARM_SOURCE_COMMIT}").readLines().collect { it.trim() }.findAll { it }
                         : []
-                    def documentation = { path -> path in ['README.md', 'RELEASE_PROCESS.md'] ||
-                        path.startsWith('docs/screenshots/') }
+                    def documentation = { path -> path in ['README.md', 'RELEASE_PROCESS.md',
+                        'CONTRIBUTING.md', 'SUPPORT.md', 'SECURITY.md', 'ISSUE_MANAGEMENT.md'] ||
+                        path.startsWith('docs/screenshots/') || path.startsWith('.gitea/ISSUE_TEMPLATE/') }
                     def documentationWorkflow = ['Jenkinsfile', 'tools/readme_release.py', 'tools/ci_release.py']
                     env.ARM_DOCS_ONLY = (changed.any(documentation) && changed.every { path ->
                         documentation(path) || path in documentationWorkflow

@@ -1,0 +1,24 @@
+name: "General Support"
+about: "Ask for help using an official ARM release."
+labels: ["type/support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+  - type: input
+    id: version
+    attributes:
+      label: "Installed ARM version"
+  - type: textarea
+    id: question
+    attributes:
+      label: "Question or goal"
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: "What you have tried"
+    validations:
+      required: true

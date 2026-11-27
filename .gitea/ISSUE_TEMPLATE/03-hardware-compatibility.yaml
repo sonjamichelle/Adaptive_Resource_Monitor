@@ -1,0 +1,52 @@
+name: "Hardware Compatibility"
+about: "Report missing or incorrect hardware telemetry."
+labels: ["type/bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+  - type: textarea
+    id: arm
+    attributes:
+      label: "Installed ARM version"
+    validations:
+      required: true
+  - type: textarea
+    id: os
+    attributes:
+      label: "Operating system"
+    validations:
+      required: true
+  - type: textarea
+    id: cpu
+    attributes:
+      label: "CPU manufacturer and model"
+  - type: textarea
+    id: gpu
+    attributes:
+      label: "GPU manufacturer and model"
+  - type: textarea
+    id: driver
+    attributes:
+      label: "GPU driver version"
+  - type: textarea
+    id: provider
+    attributes:
+      label: "Affected telemetry provider"
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Missing or incorrect readings"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected measurements and comparison tool"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Sanitized diagnostics"

@@ -1,0 +1,63 @@
+name: "Derivative Distribution Request"
+about: "Start a public, non-confidential inquiry about written permission."
+labels: ["type/derivative"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+        See [LICENSE.md](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/src/branch/main/LICENSE.md). A public issue is an inquiry. Distribution requires prior affirmative written permission from the Licensor. Send confidential details and formal requests through the [Design Creations contact form](https://www.designcreations.us/contact/index.php).
+  - type: textarea
+    id: project
+    attributes:
+      label: "Proposed derivative project and maintainer or organization"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: "Original ARM version"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: "Modifications and intended use"
+    validations:
+      required: true
+  - type: textarea
+    id: distribution
+    attributes:
+      label: "Proposed distribution method and location"
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: "Proposed source repository"
+  - type: textarea
+    id: support
+    attributes:
+      label: "Proposed public support page or issue tracker"
+  - type: dropdown
+    id: classification
+    attributes:
+      label: "Distribution classification"
+      options:
+        - "Non-commercial"
+        - "Commercial"
+        - "Unsure"
+    validations:
+      required: true
+  - type: textarea
+    id: attribution
+    attributes:
+      label: "How original attribution will be retained"
+    validations:
+      required: true
+  - type: textarea
+    id: share-alike
+    attributes:
+      label: "How applicable share-alike obligations will be met"
+    validations:
+      required: true

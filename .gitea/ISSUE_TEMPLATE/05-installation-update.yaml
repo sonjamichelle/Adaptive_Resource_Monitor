@@ -1,0 +1,55 @@
+name: "Installation or Update Issue"
+about: "Report trouble installing, verifying or updating ARM."
+labels: ["type/bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+        Keep compatibility and signature checks enabled. Include the reported result and error text with usernames, file paths and any identifying receipt data removed.
+  - type: textarea
+    id: current
+    attributes:
+      label: "Existing version"
+    validations:
+      required: true
+  - type: textarea
+    id: target
+    attributes:
+      label: "Intended version"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: "Distribution"
+      options:
+        - "Installed"
+        - "Portable"
+        - "Not yet installed"
+    validations:
+      required: true
+  - type: textarea
+    id: stage
+    attributes:
+      label: "Installation or update stage"
+    validations:
+      required: true
+  - type: textarea
+    id: signature
+    attributes:
+      label: "Signature verification result"
+  - type: textarea
+    id: package
+    attributes:
+      label: "Package integrity verification result"
+  - type: textarea
+    id: lifecycle
+    attributes:
+      label: "Shutdown, installation, restart and rollback results"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Sanitized updater logs or completion receipt details"

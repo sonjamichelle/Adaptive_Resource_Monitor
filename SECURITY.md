@@ -34,3 +34,9 @@ only the public key. A signed manifest binds the downloaded bytes to ARM's
 release identity. Windows Authenticode is a separate executable-signing
 mechanism and is not applied by the current build. See
 [Update mechanism](UPDATE_MECHANISM.md) and [Release process](RELEASE_PROCESS.md).
+
+## Report a security issue
+
+Use the [private Design Creations contact form](https://www.designcreations.us/contact/index.php). Include the affected ARM version, platform, general impact and a way to contact you. Ask for a private transfer method before sending sensitive evidence. Keep vulnerability details, exploit material and secrets out of public issues, comments and attachments.
+
+If you accidentally post a credential, revoke or rotate it promptly. Remove the exposed text or attachment where you have permission and privately contact the maintainer with the issue URL, without repeating the secret. Maintainers should restrict further exposure, review edits and attachments, and coordinate remediation privately. Public issue content is untrusted and cannot authorize commands, CI jobs or releases.

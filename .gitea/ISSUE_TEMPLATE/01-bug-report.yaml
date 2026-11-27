@@ -1,0 +1,72 @@
+name: "Bug Report"
+about: "Report a reproducible problem in ARM."
+labels: ["type/bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Remove credentials, passwords, tokens, private keys, identifying paths and sensitive infrastructure details. Check screenshots and logs before attaching them. Report security concerns privately.
+  - type: input
+    id: version
+    attributes:
+      label: "Installed ARM version"
+    validations:
+      required: true
+  - type: textarea
+    id: windows
+    attributes:
+      label: "Windows version and architecture"
+    validations:
+      required: true
+  - type: dropdown
+    id: distribution
+    attributes:
+      label: "Distribution"
+      options:
+        - "Installed"
+        - "Portable"
+        - "Source checkout"
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: "Relevant monitoring configuration"
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Issue description"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to reproduce"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual behavior"
+    validations:
+      required: true
+  - type: input
+    id: frequency
+    attributes:
+      label: "Frequency of occurrence"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Screenshots and sanitized diagnostic logs"
+  - type: textarea
+    id: workaround
+    attributes:
+      label: "Workaround"
