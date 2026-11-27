@@ -1,5 +1,186 @@
 # Adaptive Resource Monitor implementation report
 
+## Initial public release and production upgrade — 2026-11-26
+
+[Adaptive Resource Monitor v0.6.1.1_alpha](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/releases/tag/v0.6.1.1_alpha)
+was published by [Publish Release #6](https://192.168.1.164:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/6/).
+The job used [Build and Archive #3](https://192.168.1.164:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/3/)
+at 6b333b6e930399c73873911197ce1e63d567c034, the archive previously verified by
+[Publish Release #4](https://192.168.1.164:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/4/).
+The build job remained at #4 and its H/5 main-branch SCM trigger was
+still configured. Build #4 had an SCM-trigger cause. Publication #5
+records the prior rejection without authorization. Publication #6 recorded
+explicit authorization and archive #3 as its selected build.
+
+### Public readback
+
+The release tag resolves to the pinned commit. All seven files were downloaded
+over anonymous HTTPS and matched the pinned archive by byte count and SHA-256.
+The signed manifest matched the exact bytes in Jenkins build #3. Its Ed25519
+signature, application ID, version, build number, commit, package types and
+Windows x64 architecture verified. Native PE and ZIP payload checks passed.
+The release body and attached notes match the signed notes. The complete
+changelog is in both distributions and at the
+[public version tag](https://phantom.zapto.org/gitea/sonja/Adaptive_Resource_Monitor/src/tag/v0.6.1.1_alpha/CHANGELOG.md).
+
+| Anonymous attachment | Bytes | SHA-256 |
+| --- | ---: | --- |
+| AdaptiveResourceMonitor-v0.6.1.1_alpha-windows-x64-setup.exe | 57,131,180 | c4aad237a9e92668c278d08b7887f1bea16a72850c25e7c01e7aea85e6692474 |
+| AdaptiveResourceMonitor-v0.6.1.1_alpha-windows-x64-portable.zip | 71,478,426 | d7fe934beb75cf96f7aad70012a31bc958a7657f8a04fc82717111d305da9d53 |
+| SHA256SUMS.txt | 257 | 537884b587d76e13a7ccaab0fd2c30bf38f010cc5e13acc803969830f624e1de |
+| arm-update-windows-x64.json | 935 | 33ee001c4a4c6154cfb185ea381cf3e975ff3c10b780dc01b0e58c841c86f498 |
+| arm-ed25519.pub | 45 | 6127dc67b0f49479fe8a7924b1dc2fc5597da2e4c066f246925fce1c8097ba17 |
+| release-build.json | 561 | b953ec28642b906b43f7af1ed01637c63d7029186cf400a0162b1c4e019769e2 |
+| RELEASE_NOTES.md | 250 | fd25e23c01bc35099c1686ef9370024cf57f5d24b3e7c0ed643e38f0d3872734 |
+
+### Production upgrade and checks
+
+- The v0.4.1.1_alpha process closed cleanly. The anonymously downloaded
+  and verified Setup performed the in-place upgrade and completed without
+  a Windows restart. The production registry and running binary report
+  v0.6.1.1_alpha. All 297 installed payload files matched build #3.
+  The first launch logged a clean exit. A subsequent instance stayed
+  running through validation.
+- The settings file and pinned SSH host-key file matched byte for byte.
+  The three Windows Credential Manager entries and their references
+  matched, as did the Start with Windows registration. Saved machine
+  selections, graph colors, display mode, hover range, popup dimensions and
+  theme were preserved. ARM positions the popup from the live tray icon.
+  Recording was off and the configured profile had no retained SQLite
+  history. In-memory graph history began again at restart.
+- The production process had established SSH sessions to Rain, Phantom
+  and LAMP. In a private native Windows desktop, the same profiles
+  produced fresh samples for all three remotes and Local Machine.
+  Both All Systems views showed six per-machine graphs, with separate
+  plotted network IN and OUT traces. Explorer returned an on-screen
+  rectangle for the installed tray icon, and six passive samples showed
+  six distinct rendered images. The hover path passed in
+  isolation using that rectangle, and the user confirmed the popup
+  appeared when hovering over the real Explorer icon.
+- Both Check for Updates controls were invoked in the actual installed
+  executable on a private Windows desktop using a disposable profile.
+  Each queried the live public repository, verified the release and
+  displayed “This is the latest verified version.” The production
+  profile's startup and periodic update checking remained off.
+
+### Production validation cleanup
+
+Removed the duplicate anonymous downloads, expanded verification payload,
+temporary installer log, private desktop profiles and diagnostic scripts.
+Manual cleanup removed 283,979,051 bytes by logical file size, and the
+package verifier removed another 155,163,584 bytes of temporary extraction.
+Jenkins reported that it cleared the publication workspace. The installed
+application, user profile, public release, pinned local candidate and
+historical releases were kept. The local report is the only worktree edit.
+
+## v0.6.1.1_alpha — Signed updates and release automation
+
+The Feature counter advanced twice for the updater and the build and
+release infrastructure. The accepted v0.4.1.1_alpha monitoring behavior
+carries forward. VERSION.md now supplies the application and package
+version. The build number is a separate part of the Jenkins receipt.
+
+The About and tray actions check the public ARM Releases index on a
+background thread. Startup and periodic checking are opt-in. Downloads
+can be paused and resumed, and the verified installer or portable ZIP can
+be used later. Install requires confirmation. An independent Windows
+launcher waits for the monitor to save history and exit, verifies the
+package again, applies the update and waits for the new process to report
+readiness. Its transaction journal supports recovery and rollback.
+
+### Repository access
+
+The existing ARM repository serves the source and release endpoint. Before
+making it anonymously accessible, the three historical commits were
+sanitized to remove monitoring screenshots, identifying machine labels and
+personal commit email. The prior objects were pruned from the ARM repository
+on the server. Old commit and screenshot requests returned 404. The owner
+account now permits anonymous ARM access, while all 55 other repositories
+under that owner returned 404 anonymously. The original local screenshots
+remain with the user. The unused temporary binary repository was removed.
+
+### Validation
+
+- Twenty-five automated tests passed. Update fixtures covered valid and
+  invalid signatures, missing signatures, release selection, downgrade
+  rejection, server failure, package size and hash checks, interrupted
+  downloads, cancel and resume, and unsafe portable archive paths.
+- Native tests on a private Windows desktop exercised the About and tray
+  check actions, the startup policy, periodic scheduling and continuing
+  resource collection during a pending check. The live tray graph, separate
+  machine views, networking directions and branding passed regression checks.
+- The native About controls showed signed release notes and live progress.
+  Telemetry continued while a download was blocked. Install Later kept the
+  verified package across a fresh application instance. A separate loopback
+  HTTPS test downloaded and verified a package anonymously with certificate
+  validation enabled.
+- Controlled installed and portable updates ran on private Windows desktops
+  using disposable builds and profiles. Both restarted the updated executable
+  and received its readiness acknowledgement. An injected mismatch after
+  replacement restored the previous portable files. An interrupted journal
+  restored the previous executable. The test settings, saved Windows
+  credential, SSH trust file and existing SQLite row survived. The native
+  installer used a disposable AppId. An independent frozen maintenance
+  launcher also performed a signed portable update, restarted the monitor
+  and cleared its temporary recovery registration.
+- ARM's production release index was anonymously reachable and empty.
+  The accepted installation was outside the test runs. Public production
+  artifact retrieval awaits release authorization.
+
+### Jenkins release candidate
+
+[Build and Archive #3](https://192.168.1.164:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/3/)
+was triggered by an SCM change and completed successfully on inkiron-windows.
+It built commit 6b333b6e930399c73873911197ce1e63d567c034 and archived seven
+files. Native validation verified x64 PE resources, installer metadata, ZIP
+integrity and two portable launches. The archived manifest signature matched
+the trusted ARM-specific key. The downloaded archive passed offline revalidation.
+An attempted verification with an incorrect build number was rejected.
+[Publish Release #4](https://192.168.1.164:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/4/)
+copied all seven files from build #3 and verified its exact version, commit,
+signature and hashes. The public upload stage was skipped in verification-only
+mode. A disposable Inno upgrade installed all 297 files from the archived
+payload byte for byte. Its native wizard, frozen startup, shutdown and
+uninstall passed. The production registration still showed v0.4.1.1_alpha.
+[Publish Release #5](https://192.168.1.164:8080/jenkins/job/Adaptive-Resource-Monitor/job/Publish-Release/5/)
+deliberately requested publication without authorization. Jenkins rejected
+it before retrieving the archive or entering the publishing stage.
+The anonymous Gitea endpoint has zero releases and zero tags.
+[Build and Archive #4](https://192.168.1.164:8080/jenkins/job/Adaptive-Resource-Monitor/job/Build-and-Archive/4/)
+also succeeded after the publication job permission change at
+48beab46711ffc9b25a7643f46ab9a578cf43fee. Build #3 remains the selected
+candidate and is the archive copied during publication verification.
+
+| Candidate file | Bytes | SHA-256 |
+| --- | ---: | --- |
+| [Windows installer](release/v0.6.1.1_alpha/AdaptiveResourceMonitor-v0.6.1.1_alpha-windows-x64-setup.exe) | 57,131,180 | c4aad237a9e92668c278d08b7887f1bea16a72850c25e7c01e7aea85e6692474 |
+| [Portable ZIP](release/v0.6.1.1_alpha/AdaptiveResourceMonitor-v0.6.1.1_alpha-windows-x64-portable.zip) | 71,478,426 | d7fe934beb75cf96f7aad70012a31bc958a7657f8a04fc82717111d305da9d53 |
+
+The release directory also contains SHA256SUMS.txt, the Ed25519 manifest,
+public key, release notes and build receipt. The signature authenticates
+the package bytes through the manifest. The executables would require
+separate Authenticode signing for Windows publisher verification.
+
+### Cleanup and remaining authorization
+
+Removed the disposable Windows installations, temporary profiles and
+credentials, staged compiler and Python dependencies, extracted payloads,
+test TLS certificates and keys, Git sanitization checkout, failed build
+output and local diagnostics. The local build and QA cleanup accounted for
+**2,463,578,942 bytes** measured by logical file size. Build #3 independently
+reported **482,337,392 bytes** removed from its measured packaging and native
+QA directories. Build #4 reported another **482,329,896 bytes** of measured
+cleanup. Both Jenkins pipelines cleaned their workspaces after
+execution. The selected packages and verification metadata are retained
+locally and in the Jenkins archive. Earlier accepted releases and original
+local screenshots are retained as user data.
+
+Public release publication and any in-place production installation
+require separate authorization. The production index can be read anonymously.
+Anonymous downloads were tested using an isolated signed update fixture.
+Interrupted-installation recovery was exercised with a saved journal. The
+Windows sign-in path following an actual reboot was outside that test.
+
 ## v0.4.1.1_alpha — Independent tray machine
 
 The Minor counter advanced from 0 to 1. The existing Major, Feature and
