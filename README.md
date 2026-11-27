@@ -278,6 +278,14 @@ Donations confer no additional rights, preferential support, development priorit
 
 Starting with v0.8.7.4_beta, **About → Donate** opens the same PayPal page in your default browser.
 
+### Non-intrusive donation practices
+
+Design Creations keeps clearly labeled donation links easy to find in applicable applications, on product pages and in documentation. You decide when to open them. Donationware never automatically solicits donations through popups, startup or shutdown prompts, periodic reminders, nag screens, intrusive notifications, countdown timers or other disruptive mechanisms. Donation requests must never interfere with application functionality or your experience.
+
+Our software is designed to solve problems, not create another one.
+
+**Free to use. Supported by choice. Never by pressure.**
+
 ## Contributing and support
 
 [Report a Bug](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=01-bug-report.yml) · [Request a Feature](https://github.com/sonjamichelle/Adaptive_Resource_Monitor/issues/new?template=02-feature-request.yml) ·

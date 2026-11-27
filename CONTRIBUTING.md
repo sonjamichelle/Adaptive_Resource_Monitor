@@ -10,6 +10,8 @@ Open a pull request from your fork on [GitHub](https://github.com/sonjamichelle/
 
 If ARM is useful to you, [a voluntary donation](https://www.paypal.com/donate/?hosted_button_id=SWTCLV72MYG3U) can help support development. Donations do not influence the review of contributions, provide development priority or guarantee features, bug fixes or timelines. The same [license terms](LICENSE.md) apply to everyone.
 
+When designing Donationware interfaces, provide a clearly labeled and readily accessible Donate link that users open by choice. Keep it available in applicable applications, on product pages and in documentation. Never add automatic donation prompts, reminders, popups, notifications, timers or other solicitations that interrupt normal use. Check proposed changes against the [non-intrusive donation standard](README.md#non-intrusive-donation-practices).
+
 ## Derivative distribution permission
 
 Private non-commercial development and contributions directly to the project are covered by the license. Before distributing a derivative publicly, obtain affirmative written permission from the Licensor. Commercial use also requires separate written permission as described in the license.

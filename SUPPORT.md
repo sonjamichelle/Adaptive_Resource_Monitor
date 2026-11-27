@@ -21,6 +21,8 @@ When available in ARM, **Report Issue** in About or the tray opens the same publ
 
 ARM is Donationware. [Donations through PayPal](https://www.paypal.com/donate/?hosted_button_id=SWTCLV72MYG3U) are voluntary. Everyone has access to the same software, public updates and support channels. Donations do not confer priority support, guaranteed fixes or deadlines, development priority or additional [license rights](LICENSE.md).
 
+Use **About → Donate** when you choose to support development. Clear, accessible links in ARM, on its product page and in its documentation let you donate on your terms. ARM never prompts for donations automatically or interrupts your work to ask. [Non-intrusive donation practices](README.md#non-intrusive-donation-practices)
+
 ## Share diagnostics safely
 
 Work from copies of logs or screenshots. Replace system names, account names, paths and addresses with generic values. Remove passwords, tokens, private keys, fingerprints, sensitive file paths, unrelated desktop content and other identifying details. Review the entire image or text before publishing. Keep original logs, settings, credential exports, trust files and full update receipts private.
