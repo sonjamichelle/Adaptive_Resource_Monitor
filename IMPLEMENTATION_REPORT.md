@@ -17,6 +17,12 @@ machines. The save completes before a new selection or order is displayed.
 Sorting and visibility changes leave telemetry providers, SSH sessions,
 history and the primary tray source in place.
 
+Package inspection found a Qt Virtual Keyboard plugin brought in by the
+freezer and missing LGPL v3 and GPL v3 license texts. The build excludes the
+optional plugin and includes the upstream notices and versioned sources for
+the dynamically linked Qt and PySide runtime. The native package test checks
+both notice files and the absence of the plugin.
+
 ## v0.6.2.3_beta — Hover monitor version and window placement
 
 Production v0.6.2.2_beta was built from `5e8ea74be3fd94156bdc7a0810cfcc8eaac739f0`.

@@ -53,6 +53,8 @@ def run(args):
 def copy_notices(payload):
     notices = payload / "Third-party notices"
     notices.mkdir()
+    for name in ("LGPL-3.0-only.txt", "GPL-3.0-only.txt"):
+        shutil.copyfile(ROOT / "packaging" / "qt-notices" / name, notices / name)
     for package in ("PySide6", "PySide6-Essentials", "PySide6-Addons", "shiboken6", "psutil",
                     "paramiko", "cryptography", "cffi", "bcrypt", "PyNaCl", "PyInstaller",
                     "setuptools", "nvidia-ml-py", "invoke", "pycparser"):
@@ -145,6 +147,11 @@ def build(compiler, output):
             str(ROOT / "monitor.pyw"),
         ])
         payload = temporary / "dist" / "AdaptiveResourceMonitor"
+        # PyInstaller discovers optional Qt plugins that ARM never loads.
+        # Qt Virtual Keyboard is GPLv3 or commercial, outside the LGPL Qt runtime.
+        qt = payload / "_internal" / "PySide6"
+        for file in ("Qt6VirtualKeyboard.dll", "plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll"):
+            (qt / file).unlink(missing_ok=True)
         shutil.copyfile(temporary / "maintenance" / f"{worker_name}.exe", payload / f"{worker_name}.exe")
         (payload / "VERSION.txt").write_text(VERSION + "\n", encoding="utf-8")
         (payload / "BUILD.json").write_text(json.dumps(identity, indent=2) + "\n", encoding="utf-8")

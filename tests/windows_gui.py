@@ -257,6 +257,10 @@ def validate_packages(release, work, result, upgrade_from=None, captures=None, p
     assert json.loads((payload / "BUILD.json").read_text())["version"] == VERSION
     assert VERSION in (payload / "CHANGELOG.md").read_text(encoding="utf-8")
     assert (payload / "Third-party notices" / "README.md").is_file()
+    for name in ("LGPL-3.0-only.txt", "GPL-3.0-only.txt"):
+        assert (payload / "Third-party notices" / name).read_bytes() == (
+            ROOT / "packaging" / "qt-notices" / name).read_bytes()
+    assert not list((payload / "_internal").rglob("*[Vv]irtual[Kk]eyboard*"))
     for name in BUNDLED_ASSETS:
         assert (payload / "_internal" / "branding" / name).read_bytes() == asset(name).read_bytes()
     verify_executable(setup, VERSION)
